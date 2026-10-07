@@ -26,6 +26,24 @@ x-auth: &auth
   AUTH_DEV_TOKENS: ${AUTH_DEV_TOKENS:-true}
 
 services:
+  # ----------------------------------------------------------------- API Gateway (Ilico Artemie)
+  # The single point of entry: every REST request — from the client and between services — goes
+  # through it. Written in Python. Its image has a built-in health check.
+  gateway:
+    image: artflow/gateway:${GATEWAY_VERSION:-2.0.0}
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      PLAYER_SERVICE_URL: http://player-service:8001
+      GAME_SERVICE_URL: http://game-service:8002
+      EXAM_SERVICE_URL: http://exam-service:8003
+      WORLD_SERVICE_URL: http://world-service:8004
+      ZOMBIE_SERVICE_URL: http://zombie-service:8005
+      RESOURCE_SERVICE_URL: http://resource-service:8006
+      BASE_SERVICE_URL: http://base-service:8007
+      CRAFTING_SERVICE_URL: http://crafting-service:8008
+
   # --------------------------------------------------------------- Player Service (Islam Abu Koush)
   player-db:
     <<: *postgres
