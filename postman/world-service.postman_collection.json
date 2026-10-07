@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "PAD TEAM 7 — World Service",
-    "description": "World Service (port 8004) — see section 4 of the CPR README. Run the folders in order (Collection Runner works). Needs AUTH_DEV_TOKENS=true for the test tokens.",
+    "description": "World Service (section 4 of the CPR README), reached through the API gateway on :8080 (Lab 2). Run the folders in order (Collection Runner works).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -16,15 +16,23 @@
   },
   "variable": [
     {
-      "key": "world_url",
-      "value": "http://localhost:8004/api/v1"
+      "key": "gateway_url",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "player_username",
+      "value": ""
+    },
+    {
+      "key": "other_username",
+      "value": ""
     },
     {
       "key": "player_id",
-      "value": "player-postman"
+      "value": ""
     },
     {
-      "key": "lobby_id",
+      "key": "other_player_id",
       "value": ""
     },
     {
@@ -40,13 +48,17 @@
       "value": ""
     },
     {
+      "key": "lobby_id",
+      "value": ""
+    },
+    {
       "key": "room_id",
       "value": ""
     }
   ],
   "item": [
     {
-      "name": "Health",
+      "name": "Health (prefixed route)",
       "event": [
         {
           "listen": "test",
@@ -65,30 +77,74 @@
         },
         "header": [],
         "url": {
-          "raw": "{{world_url}}/health",
+          "raw": "{{gateway_url}}/world-service/api/v1/health",
           "host": [
-            "{{world_url}}"
+            "{{gateway_url}}"
           ],
           "path": [
+            "world-service",
+            "api",
+            "v1",
             "health"
           ]
         }
       }
     },
     {
-      "name": "0. Auth (test tokens)",
-      "description": "Run first. Tokens are stored as collection variables and used by every other request.",
+      "name": "Ready (checks the database)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 200', () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [],
+        "url": {
+          "raw": "{{gateway_url}}/world-service/api/v1/ready",
+          "host": [
+            "{{gateway_url}}"
+          ],
+          "path": [
+            "world-service",
+            "api",
+            "v1",
+            "ready"
+          ]
+        }
+      }
+    },
+    {
+      "name": "0. Auth (through the gateway)",
+      "description": "Run first: the tokens are stored as collection variables and used by every other request.",
       "item": [
         {
-          "name": "Player token",
+          "name": "Register player",
           "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('player_username', 'player_' + Date.now());"
+                ]
+              }
+            },
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('status 201', () => pm.response.to.have.status(201));",
-                  "pm.collectionVariables.set('player_token', pm.response.json().access_token);"
+                  "pm.test('status 201', () => pm.response.to.have.status(201));"
                 ]
               }
             }
@@ -106,7 +162,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"kind\": \"player\",\n  \"sub\": \"{{player_id}}\",\n  \"username\": \"undead_survivor\"\n}",
+              "raw": "{\n  \"username\": \"{{player_username}}\",\n  \"email\": \"{{player_username}}@faf.university\",\n  \"password\": \"correct-horse-battery\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -114,28 +170,31 @@
               }
             },
             "url": {
-              "raw": "{{world_url}}/dev/tokens",
+              "raw": "{{gateway_url}}/api/v1/players/register",
               "host": [
-                "{{world_url}}"
+                "{{gateway_url}}"
               ],
               "path": [
-                "dev",
-                "tokens"
+                "api",
+                "v1",
+                "players",
+                "register"
               ]
-            },
-            "description": "Stand-in for Player Service login (AUTH_DEV_TOKENS=true). Stores {{player_token}}."
+            }
           }
         },
         {
-          "name": "Other player token",
+          "name": "Log in player (real RS256 token from Player Service)",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('status 201', () => pm.response.to.have.status(201));",
-                  "pm.collectionVariables.set('other_player_token', pm.response.json().access_token);"
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('player_id', body.player_id);",
+                  "pm.collectionVariables.set('player_token', body.access_token);"
                 ]
               }
             }
@@ -153,7 +212,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"kind\": \"player\",\n  \"sub\": \"someone-else\"\n}",
+              "raw": "{\n  \"email\": \"{{player_username}}@faf.university\",\n  \"password\": \"correct-horse-battery\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -161,19 +220,127 @@
               }
             },
             "url": {
-              "raw": "{{world_url}}/dev/tokens",
+              "raw": "{{gateway_url}}/api/v1/players/login",
               "host": [
-                "{{world_url}}"
+                "{{gateway_url}}"
               ],
               "path": [
-                "dev",
-                "tokens"
+                "api",
+                "v1",
+                "players",
+                "login"
               ]
             }
           }
         },
         {
-          "name": "Service token (as game-service)",
+          "name": "Register other",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('other_username', 'other_' + Date.now());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 201', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{other_username}}\",\n  \"email\": \"{{other_username}}@faf.university\",\n  \"password\": \"correct-horse-battery\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/players/register",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "players",
+                "register"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Log in other (real RS256 token from Player Service)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('other_player_id', body.player_id);",
+                  "pm.collectionVariables.set('other_player_token', body.access_token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{other_username}}@faf.university\",\n  \"password\": \"correct-horse-battery\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/players/login",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "players",
+                "login"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Service token (gateway test endpoint, as game-service)",
           "event": [
             {
               "listen": "test",
@@ -199,7 +366,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"kind\": \"service\",\n  \"sub\": \"game-service\"\n}",
+              "raw": "{\n  \"sub\": \"game-service\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -207,15 +374,17 @@
               }
             },
             "url": {
-              "raw": "{{world_url}}/dev/tokens",
+              "raw": "{{gateway_url}}/gateway/dev/tokens",
               "host": [
-                "{{world_url}}"
+                "{{gateway_url}}"
               ],
               "path": [
+                "gateway",
                 "dev",
                 "tokens"
               ]
-            }
+            },
+            "description": "Enabled by DEV_TOKENS=true (AUTH_DEV_TOKENS in deploy/.env). Player tokens come from the login above."
           }
         }
       ]
@@ -279,15 +448,16 @@
               }
             },
             "url": {
-              "raw": "{{world_url}}/worlds",
+              "raw": "{{gateway_url}}/api/v1/worlds",
               "host": [
-                "{{world_url}}"
+                "{{gateway_url}}"
               ],
               "path": [
+                "api",
+                "v1",
                 "worlds"
               ]
-            },
-            "description": "A fresh lobby id is generated before every run."
+            }
           }
         },
         {
@@ -336,11 +506,13 @@
               }
             },
             "url": {
-              "raw": "{{world_url}}/worlds",
+              "raw": "{{gateway_url}}/api/v1/worlds",
               "host": [
-                "{{world_url}}"
+                "{{gateway_url}}"
               ],
               "path": [
+                "api",
+                "v1",
                 "worlds"
               ]
             }
@@ -369,11 +541,13 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{world_url}}/worlds/{{lobby_id}}",
+              "raw": "{{gateway_url}}/api/v1/worlds/{{lobby_id}}",
               "host": [
-                "{{world_url}}"
+                "{{gateway_url}}"
               ],
               "path": [
+                "api",
+                "v1",
                 "worlds",
                 "{{lobby_id}}"
               ]
@@ -397,11 +571,13 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{world_url}}/worlds/{{lobby_id}}/wings",
+              "raw": "{{gateway_url}}/api/v1/worlds/{{lobby_id}}/wings",
               "host": [
-                "{{world_url}}"
+                "{{gateway_url}}"
               ],
               "path": [
+                "api",
+                "v1",
                 "worlds",
                 "{{lobby_id}}",
                 "wings"
@@ -429,11 +605,13 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{world_url}}/worlds/{{lobby_id}}/rooms?type=laboratory",
+              "raw": "{{gateway_url}}/api/v1/worlds/{{lobby_id}}/rooms?type=laboratory",
               "host": [
-                "{{world_url}}"
+                "{{gateway_url}}"
               ],
               "path": [
+                "api",
+                "v1",
                 "worlds",
                 "{{lobby_id}}",
                 "rooms"
@@ -465,11 +643,13 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{world_url}}/rooms/{{room_id}}",
+              "raw": "{{gateway_url}}/api/v1/rooms/{{room_id}}",
               "host": [
-                "{{world_url}}"
+                "{{gateway_url}}"
               ],
               "path": [
+                "api",
+                "v1",
                 "rooms",
                 "{{room_id}}"
               ]
@@ -482,7 +662,7 @@
       "name": "3. Service reads and updates",
       "item": [
         {
-          "name": "Resource nodes",
+          "name": "Resource nodes (with real Resource pools)",
           "event": [
             {
               "listen": "test",
@@ -508,11 +688,13 @@
             },
             "header": [],
             "url": {
-              "raw": "{{world_url}}/worlds/{{lobby_id}}/nodes",
+              "raw": "{{gateway_url}}/api/v1/worlds/{{lobby_id}}/nodes",
               "host": [
-                "{{world_url}}"
+                "{{gateway_url}}"
               ],
               "path": [
+                "api",
+                "v1",
                 "worlds",
                 "{{lobby_id}}",
                 "nodes"
@@ -547,11 +729,13 @@
             },
             "header": [],
             "url": {
-              "raw": "{{world_url}}/worlds/{{lobby_id}}/spawns?phase=night",
+              "raw": "{{gateway_url}}/api/v1/worlds/{{lobby_id}}/spawns?phase=night",
               "host": [
-                "{{world_url}}"
+                "{{gateway_url}}"
               ],
               "path": [
+                "api",
+                "v1",
                 "worlds",
                 "{{lobby_id}}",
                 "spawns"
@@ -611,11 +795,13 @@
               }
             },
             "url": {
-              "raw": "{{world_url}}/rooms/{{room_id}}",
+              "raw": "{{gateway_url}}/api/v1/rooms/{{room_id}}",
               "host": [
-                "{{world_url}}"
+                "{{gateway_url}}"
               ],
               "path": [
+                "api",
+                "v1",
                 "rooms",
                 "{{room_id}}"
               ]
@@ -673,11 +859,13 @@
               }
             },
             "url": {
-              "raw": "{{world_url}}/worlds/{{lobby_id}}/unlock",
+              "raw": "{{gateway_url}}/api/v1/worlds/{{lobby_id}}/unlock",
               "host": [
-                "{{world_url}}"
+                "{{gateway_url}}"
               ],
               "path": [
+                "api",
+                "v1",
                 "worlds",
                 "{{lobby_id}}",
                 "unlock"
@@ -731,11 +919,13 @@
               }
             },
             "url": {
-              "raw": "{{world_url}}/worlds/{{lobby_id}}/unlock",
+              "raw": "{{gateway_url}}/api/v1/worlds/{{lobby_id}}/unlock",
               "host": [
-                "{{world_url}}"
+                "{{gateway_url}}"
               ],
               "path": [
+                "api",
+                "v1",
                 "worlds",
                 "{{lobby_id}}",
                 "unlock"
@@ -789,11 +979,13 @@
               }
             },
             "url": {
-              "raw": "{{world_url}}/worlds/{{lobby_id}}/unlock",
+              "raw": "{{gateway_url}}/api/v1/worlds/{{lobby_id}}/unlock",
               "host": [
-                "{{world_url}}"
+                "{{gateway_url}}"
               ],
               "path": [
+                "api",
+                "v1",
                 "worlds",
                 "{{lobby_id}}",
                 "unlock"
@@ -802,7 +994,7 @@
           }
         },
         {
-          "name": "ExamPassed event → unlock Science",
+          "name": "ExamPassed event (prefixed route) → unlock Science",
           "event": [
             {
               "listen": "test",
@@ -835,7 +1027,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"event_id\": \"{{$guid}}\",\n  \"type\": \"ExamPassed\",\n  \"version\": 1,\n  \"occurred_at\": \"2026-09-24T10:00:00Z\",\n  \"producer\": \"exam-service\",\n  \"payload\": {\n    \"player_id\": \"{{player_id}}\",\n    \"course_id\": \"math-102\",\n    \"grade\": 9,\n    \"lobby_id\": \"{{lobby_id}}\"\n  }\n}",
+              "raw": "{\n  \"event_id\": \"{{$guid}}\",\n  \"type\": \"ExamPassed\",\n  \"version\": 1,\n  \"occurred_at\": \"2026-10-08T10:00:00Z\",\n  \"producer\": \"exam-service\",\n  \"payload\": {\n    \"player_id\": \"{{player_id}}\",\n    \"course_id\": \"math-102\",\n    \"grade\": 9,\n    \"lobby_id\": \"{{lobby_id}}\"\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -843,11 +1035,14 @@
               }
             },
             "url": {
-              "raw": "{{world_url}}/events",
+              "raw": "{{gateway_url}}/world-service/api/v1/events",
               "host": [
-                "{{world_url}}"
+                "{{gateway_url}}"
               ],
               "path": [
+                "world-service",
+                "api",
+                "v1",
                 "events"
               ]
             }
@@ -871,11 +1066,13 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{world_url}}/worlds/{{lobby_id}}/wings",
+              "raw": "{{gateway_url}}/api/v1/worlds/{{lobby_id}}/wings",
               "host": [
-                "{{world_url}}"
+                "{{gateway_url}}"
               ],
               "path": [
+                "api",
+                "v1",
                 "worlds",
                 "{{lobby_id}}",
                 "wings"
@@ -889,7 +1086,7 @@
       "name": "5. Errors",
       "item": [
         {
-          "name": "No token → 401",
+          "name": "No token → 401 at the gateway",
           "event": [
             {
               "listen": "test",
@@ -909,11 +1106,13 @@
             },
             "header": [],
             "url": {
-              "raw": "{{world_url}}/worlds/{{lobby_id}}",
+              "raw": "{{gateway_url}}/api/v1/worlds/{{lobby_id}}",
               "host": [
-                "{{world_url}}"
+                "{{gateway_url}}"
               ],
               "path": [
+                "api",
+                "v1",
                 "worlds",
                 "{{lobby_id}}"
               ]
@@ -938,11 +1137,13 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{world_url}}/worlds/{{lobby_id}}/nodes",
+              "raw": "{{gateway_url}}/api/v1/worlds/{{lobby_id}}/nodes",
               "host": [
-                "{{world_url}}"
+                "{{gateway_url}}"
               ],
               "path": [
+                "api",
+                "v1",
                 "worlds",
                 "{{lobby_id}}",
                 "nodes"
@@ -968,11 +1169,13 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{world_url}}/worlds/no-such-lobby",
+              "raw": "{{gateway_url}}/api/v1/worlds/no-such-lobby",
               "host": [
-                "{{world_url}}"
+                "{{gateway_url}}"
               ],
               "path": [
+                "api",
+                "v1",
                 "worlds",
                 "no-such-lobby"
               ]
@@ -997,11 +1200,13 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{world_url}}/rooms/00000000-0000-4000-8000-000000000000",
+              "raw": "{{gateway_url}}/api/v1/rooms/00000000-0000-4000-8000-000000000000",
               "host": [
-                "{{world_url}}"
+                "{{gateway_url}}"
               ],
               "path": [
+                "api",
+                "v1",
                 "rooms",
                 "00000000-0000-4000-8000-000000000000"
               ]
