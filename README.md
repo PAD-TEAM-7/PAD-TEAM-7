@@ -3156,6 +3156,7 @@ issue is closed by the PR; and the Project board card has moved to **Done** auto
 │   └── db/                            ← one schema script per database
 ├── postman/                           ← one Postman collection per service
 ├── guide-private.md                   ← how to create and link the private repos
+├── gateway/                           ← submodule (private): the API gateway, Python
 ├── player-service/                    ← submodule (private)
 ├── game-service/                      ← submodule (private)
 ├── exam-service/                      ← submodule (private)
@@ -3170,7 +3171,9 @@ issue is closed by the PR; and the Project board card has moved to **Done** auto
 
 The eight service repositories are **private by design**. Only the professor is invited to them —
 team members integrate against the contract in this document rather than by reading each other's
-source, which is what keeps the boundaries honest.
+source, which is what keeps the boundaries honest. The gateway repository (Lab 2) is private too,
+with the professor and the whole team as collaborators: every service depends on its routing, so
+every owner reviews it.
 
 ```bash
 git clone --recurse-submodules https://github.com/<GITHUB_ORG>/<CPR_REPO>.git
