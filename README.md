@@ -50,13 +50,14 @@ in a named volume.
 ### Requirements
 
 - Docker with Docker Compose v2 (Docker Desktop on Windows and macOS)
-- Free host ports `8001` through `8008`
+- Free host ports `8080` (API Gateway) and `8001` through `8008`
 - Internet access on the first run, to pull the images
 
 ### Published images
 
 | Service | Owner | Image | Version | Port | Postman collection |
 | --- | --- | --- | --- | --- | --- |
+| **API Gateway** | Ilico Artemie | [`artflow/gateway`](https://hub.docker.com/r/artflow/gateway) | `2.0.0` | `8080` | — |
 | Player Service | Islam Abu Koush | [`geografix/player-service`](https://hub.docker.com/r/geografix/player-service) | `1.0.0` | `8001` | [`postman/player-service.postman_collection.json`](./postman/player-service.postman_collection.json) |
 | Game Service | Islam Abu Koush | [`geografix/game-service`](https://hub.docker.com/r/geografix/game-service) | `1.0.0` | `8002` | [`postman/game-service.postman_collection.json`](./postman/game-service.postman_collection.json) |
 | Exam Service | Ilico Artemie | [`artflow/exam-service`](https://hub.docker.com/r/artflow/exam-service) | `1.0.0` | `8003` | [`postman/exam-service.postman_collection.json`](./postman/exam-service.postman_collection.json) |
