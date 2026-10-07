@@ -1,0 +1,19 @@
+# Debugging only: publishes every service's own port on the host, bypassing the API gateway.
+# Normal runs use docker-compose.yml alone, where the gateway (8080) is the only entry point.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.direct-ports.yml up -d
+services:
+  player-service:
+    ports: ["8001:8001"]
+  exam-service:
+    ports: ["8003:8003"]
+  world-service:
+    ports: ["8004:8004"]
+  zombie-service:
+    ports: ["8005:8005"]
+  resource-service:
+    ports: ["8006:8006"]
+  base-service:
+    ports: ["8007:8007"]
+  crafting-service:
+    ports: ["8008:8008"]
