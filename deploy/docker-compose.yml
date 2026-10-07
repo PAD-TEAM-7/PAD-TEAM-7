@@ -47,7 +47,7 @@ services:
   # The single point of entry: every REST request — from the client and between services — goes
   # through it. Written in Python. Its image has a built-in health check.
   gateway:
-    image: artflow/gateway:${GATEWAY_VERSION:-2.0.0}
+    image: artflow/gateway:${GATEWAY_VERSION:-2.1.0}
     restart: unless-stopped
     ports:
       - "8080:8080"
@@ -133,7 +133,7 @@ services:
       - exam_db_data:/var/lib/postgresql/data
 
   exam-service:
-    image: artflow/exam-service:${EXAM_SERVICE_VERSION:-1.0.0}
+    image: artflow/exam-service:${EXAM_SERVICE_VERSION:-2.0.0}
     restart: unless-stopped
     environment:
       <<: [*auth, *via-gateway]
@@ -144,6 +144,12 @@ services:
       DB_USER: ${EXAM_DB_USER:-exam}
       DB_PASSWORD: ${EXAM_DB_PASSWORD}
       DB_NAME: exam_db
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8003/api/v1/ready || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 40s
     depends_on:
       exam-db:
         condition: service_healthy
@@ -159,7 +165,7 @@ services:
       - world_db_data:/var/lib/postgresql/data
 
   world-service:
-    image: artflow/world-service:${WORLD_SERVICE_VERSION:-1.0.0}
+    image: artflow/world-service:${WORLD_SERVICE_VERSION:-2.0.0}
     restart: unless-stopped
     environment:
       <<: [*auth, *via-gateway]
@@ -170,6 +176,12 @@ services:
       DB_USER: ${WORLD_DB_USER:-world}
       DB_PASSWORD: ${WORLD_DB_PASSWORD}
       DB_NAME: world_db
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8004/api/v1/ready || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 40s
     depends_on:
       world-db:
         condition: service_healthy
