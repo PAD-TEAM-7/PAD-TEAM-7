@@ -5,8 +5,10 @@
 #   cp .env.example .env    # fill in the secrets — .env is never committed
 #   docker compose up -d
 #
-# Services whose URL is left empty are mocked by their callers (the call is logged, not sent),
-# so any subset of the team's services can run on its own.
+# Lab 2: the API gateway (port 8080) is the only entry point. Services are not published to the
+# host, except Game on 8002, whose WebSocket the gateway hands to clients directly. To reach the
+# services directly while debugging:
+#   docker compose -f docker-compose.yml -f docker-compose.direct-ports.yml up -d
 name: pad-team-7
 
 x-postgres: &postgres
@@ -25,6 +27,18 @@ x-auth: &auth
   MOCK_PLAYER_JWT_SECRET: ${MOCK_PLAYER_JWT_SECRET:?MOCK_PLAYER_JWT_SECRET is not set in .env}
   AUTH_DEV_TOKENS: ${AUTH_DEV_TOKENS:-true}
 
+# Lab 2: every service reaches every other service through the API gateway, addressed by its
+# service prefix (http://gateway:8080/<service>/api/v1/...). Override one in .env only to debug.
+x-via-gateway: &via-gateway
+  PLAYER_SERVICE_URL: ${PLAYER_SERVICE_URL:-http://gateway:8080/player-service}
+  GAME_SERVICE_URL: ${GAME_SERVICE_URL:-http://gateway:8080/game-service}
+  EXAM_SERVICE_URL: ${EXAM_SERVICE_URL:-http://gateway:8080/exam-service}
+  WORLD_SERVICE_URL: ${WORLD_SERVICE_URL:-http://gateway:8080/world-service}
+  ZOMBIE_SERVICE_URL: ${ZOMBIE_SERVICE_URL:-http://gateway:8080/zombie-service}
+  RESOURCE_SERVICE_URL: ${RESOURCE_SERVICE_URL:-http://gateway:8080/resource-service}
+  BASE_SERVICE_URL: ${BASE_SERVICE_URL:-http://gateway:8080/base-service}
+  CRAFTING_SERVICE_URL: ${CRAFTING_SERVICE_URL:-http://gateway:8080/crafting-service}
+
 services:
   # ----------------------------------------------------------------- API Gateway (Ilico Artemie)
   # The single point of entry: every REST request — from the client and between services — goes
@@ -35,6 +49,7 @@ services:
     ports:
       - "8080:8080"
     environment:
+      # The gateway is the one component that addresses the services directly.
       PLAYER_SERVICE_URL: http://player-service:8001
       GAME_SERVICE_URL: http://game-service:8002
       EXAM_SERVICE_URL: http://exam-service:8003
@@ -58,9 +73,8 @@ services:
   player-service:
     image: geografix/player-service:${PLAYER_SERVICE_VERSION:-1.0.0}
     restart: unless-stopped
-    ports:
-      - "8001:8001"
     environment:
+      <<: *via-gateway
       PORT: 8001
       DATABASE_URL: postgres://${PLAYER_DB_USER:-player}:${PLAYER_DB_PASSWORD}@player-db:5432/player_db?sslmode=disable
       SERVICE_JWT_SECRET: ${SERVICE_JWT_SECRET}
@@ -86,16 +100,10 @@ services:
     ports:
       - "8002:8002"
     environment:
-      <<: *auth
+      <<: [*auth, *via-gateway]
       PORT: 8002
       DATABASE_URL: postgres://${GAME_DB_USER:-game}:${GAME_DB_PASSWORD}@game-db:5432/game_db?sslmode=disable
-      PLAYER_JWKS_URL: http://player-service:8001/api/v1/auth/jwks
-      PLAYER_SERVICE_URL: http://player-service:8001
-      WORLD_SERVICE_URL: ${WORLD_SERVICE_URL:-}
-      BASE_SERVICE_URL: ${BASE_SERVICE_URL:-}
-      RESOURCE_SERVICE_URL: ${RESOURCE_SERVICE_URL:-}
-      EXAM_SERVICE_URL: ${EXAM_SERVICE_URL:-}
-      ZOMBIE_SERVICE_URL: ${ZOMBIE_SERVICE_URL:-}
+      PLAYER_JWKS_URL: http://gateway:8080/api/v1/auth/jwks
       ACTION_TIME_SCALE: ${ACTION_TIME_SCALE:-0.01}
     depends_on:
       game-db:
@@ -116,19 +124,14 @@ services:
   exam-service:
     image: artflow/exam-service:${EXAM_SERVICE_VERSION:-1.0.0}
     restart: unless-stopped
-    ports:
-      - "8003:8003"
     environment:
-      <<: *auth
+      <<: [*auth, *via-gateway]
       PORT: 8003
       DB_HOST: exam-db
       DB_PORT: 5432
       DB_USER: ${EXAM_DB_USER:-exam}
       DB_PASSWORD: ${EXAM_DB_PASSWORD}
       DB_NAME: exam_db
-      WORLD_SERVICE_URL: http://world-service:8004
-      PLAYER_SERVICE_URL: ${PLAYER_SERVICE_URL:-}
-      CRAFTING_SERVICE_URL: ${CRAFTING_SERVICE_URL:-}
     depends_on:
       exam-db:
         condition: service_healthy
@@ -146,19 +149,14 @@ services:
   world-service:
     image: artflow/world-service:${WORLD_SERVICE_VERSION:-1.0.0}
     restart: unless-stopped
-    ports:
-      - "8004:8004"
     environment:
-      <<: *auth
+      <<: [*auth, *via-gateway]
       PORT: 8004
       DB_HOST: world-db
       DB_PORT: 5432
       DB_USER: ${WORLD_DB_USER:-world}
       DB_PASSWORD: ${WORLD_DB_PASSWORD}
       DB_NAME: world_db
-      RESOURCE_SERVICE_URL: ${RESOURCE_SERVICE_URL:-}
-      CRAFTING_SERVICE_URL: ${CRAFTING_SERVICE_URL:-}
-      GAME_SERVICE_URL: ${GAME_SERVICE_URL:-}
     depends_on:
       world-db:
         condition: service_healthy
@@ -177,20 +175,14 @@ services:
   base-service:
     image: nnick34567890/base-service:${BASE_SERVICE_VERSION:-1.0.0}
     restart: unless-stopped
-    ports:
-      - "8007:8007"
     environment:
-      <<: *auth
+      <<: [*auth, *via-gateway]
       PORT: 8007
       DB_HOST: base-db
       DB_PORT: 5432
       DB_USER: ${BASE_DB_USER:-base}
       DB_PASSWORD: ${BASE_DB_PASSWORD}
       DB_NAME: base_db
-      RESOURCE_SERVICE_URL: ${RESOURCE_SERVICE_URL:-}
-      WORLD_SERVICE_URL: http://world-service:8004
-      PLAYER_SERVICE_URL: ${PLAYER_SERVICE_URL:-}
-      EXAM_SERVICE_URL: http://exam-service:8003
     depends_on:
       base-db:
         condition: service_healthy
@@ -209,21 +201,14 @@ services:
   crafting-service:
     image: nnick34567890/crafting-service:${CRAFTING_SERVICE_VERSION:-1.0.0}
     restart: unless-stopped
-    ports:
-      - "8008:8008"
     environment:
-      <<: *auth
+      <<: [*auth, *via-gateway]
       PORT: 8008
       DB_HOST: crafting-db
       DB_PORT: 5432
       DB_USER: ${CRAFTING_DB_USER:-crafting}
       DB_PASSWORD: ${CRAFTING_DB_PASSWORD}
       DB_NAME: crafting_db
-      RESOURCE_SERVICE_URL: ${RESOURCE_SERVICE_URL:-}
-      PLAYER_SERVICE_URL: ${PLAYER_SERVICE_URL:-}
-      EXAM_SERVICE_URL: http://exam-service:8003
-      WORLD_SERVICE_URL: http://world-service:8004
-      BASE_SERVICE_URL: http://base-service:8007
     depends_on:
       crafting-db:
         condition: service_healthy
@@ -241,15 +226,11 @@ services:
   zombie-service:
     image: geografix/zombie-service:${ZOMBIE_SERVICE_VERSION:-1.0.0}
     restart: unless-stopped
-    ports:
-      - "8005:8005"
     environment:
-      <<: *auth
+      <<: [*auth, *via-gateway]
       PORT: 8005
       DATABASE_URL: postgres://${ZOMBIE_DB_USER:-zombie}:${ZOMBIE_DB_PASSWORD}@zombie-db:5432/zombie_db?sslmode=disable
-      PLAYER_JWKS_URL: http://player-service:8001/api/v1/auth/jwks
-      PLAYER_SERVICE_URL: http://player-service:8001
-      RESOURCE_SERVICE_URL: http://resource-service:8006
+      PLAYER_JWKS_URL: http://gateway:8080/api/v1/auth/jwks
     depends_on:
       zombie-db:
         condition: service_healthy
@@ -271,10 +252,8 @@ services:
   resource-service:
     image: geografix/resource-service:${RESOURCE_SERVICE_VERSION:-1.0.0}
     restart: unless-stopped
-    ports:
-      - "8006:8006"
     environment:
-      <<: *auth
+      <<: [*auth, *via-gateway]
       PORT: 8006
       DATABASE_URL: postgres://${RESOURCE_DB_USER:-resource}:${RESOURCE_DB_PASSWORD}@resource-db:5432/resource_db?sslmode=disable
     depends_on:
