@@ -26,6 +26,9 @@ x-auth: &auth
   PLAYER_JWT_ISSUER: player-service
   MOCK_PLAYER_JWT_SECRET: ${MOCK_PLAYER_JWT_SECRET:?MOCK_PLAYER_JWT_SECRET is not set in .env}
   AUTH_DEV_TOKENS: ${AUTH_DEV_TOKENS:-true}
+  # Lab 2: the gateway verifies tokens and sends a signed identity instead (X-Auth-* headers).
+  # A service in gateway mode trusts only that identity and never sees a token.
+  GATEWAY_IDENTITY_SECRET: ${GATEWAY_IDENTITY_SECRET:?GATEWAY_IDENTITY_SECRET is not set in .env}
 
 # Lab 2: every service reaches every other service through the API gateway, addressed by its
 # service prefix (http://gateway:8080/<service>/api/v1/...). Override one in .env only to debug.
@@ -49,6 +52,14 @@ services:
     ports:
       - "8080:8080"
     environment:
+      # Authentication: every token is verified here and never forwarded (grade 10).
+      SERVICE_JWT_SECRET: ${SERVICE_JWT_SECRET:?SERVICE_JWT_SECRET is not set in .env}
+      GATEWAY_IDENTITY_SECRET: ${GATEWAY_IDENTITY_SECRET:?GATEWAY_IDENTITY_SECRET is not set in .env}
+      PLAYER_JWKS_URL: http://player-service:8001/api/v1/auth/jwks
+      # Services that still verify tokens themselves also receive the token while they migrate.
+      LEGACY_AUTH_SERVICES: ${LEGACY_AUTH_SERVICES:-}
+      DEV_TOKENS: ${AUTH_DEV_TOKENS:-true}
+      GAME_WS_PUBLIC_URL: ${GAME_WS_PUBLIC_URL:-ws://localhost:8002}
       # The gateway is the one component that addresses the services directly.
       PLAYER_SERVICE_URL: http://player-service:8001
       GAME_SERVICE_URL: http://game-service:8002
@@ -126,6 +137,7 @@ services:
     restart: unless-stopped
     environment:
       <<: [*auth, *via-gateway]
+      AUTH_MODE: gateway
       PORT: 8003
       DB_HOST: exam-db
       DB_PORT: 5432
@@ -151,6 +163,7 @@ services:
     restart: unless-stopped
     environment:
       <<: [*auth, *via-gateway]
+      AUTH_MODE: gateway
       PORT: 8004
       DB_HOST: world-db
       DB_PORT: 5432
