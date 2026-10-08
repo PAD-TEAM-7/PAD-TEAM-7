@@ -44,13 +44,13 @@ does not remain in the live data path. Domain services keep ownership of their p
 
 Every service is published on DockerHub as a **public image tagged with its version**. The team
 deployment in [`deploy/docker-compose.yml`](./deploy/docker-compose.yml) runs those images directly.
-It uses no Dockerfiles and builds nothing. Each service gets its own PostgreSQL 16 database, persisted
-in a named volume.
+It uses no Dockerfiles and builds nothing. Each domain service gets its own PostgreSQL 16 database,
+persisted in a named volume; the stateless Gateway needs no database.
 
 ### Requirements
 
 - Docker with Docker Compose v2 (Docker Desktop on Windows and macOS)
-- Free host ports `8001` through `8008`
+- Free host ports `8001` through `8008` and `8080`
 - Internet access on the first run, to pull the images
 
 ### Published images
@@ -65,6 +65,7 @@ in a named volume.
 | Resource Service | Roenco Maxim | [`geografix/resource-service`](https://hub.docker.com/r/geografix/resource-service) | `1.0.0` | `8006` | [`postman/resource-service.postman_collection.json`](./postman/resource-service.postman_collection.json) |
 | Base Service | Gancear Nichita | [`nnick34567890/base-service`](https://hub.docker.com/r/nnick34567890/base-service) | `1.0.0` | `8007` | [`postman/base-service.postman_collection.json`](./postman/base-service.postman_collection.json) |
 | Crafting Service | Gancear Nichita | [`nnick34567890/crafting-service`](https://hub.docker.com/r/nnick34567890/crafting-service) | `1.0.0` | `8008` | [`postman/crafting-service.postman_collection.json`](./postman/crafting-service.postman_collection.json) |
+| Gateway Service | Ilico Artemie | [`artflow/gateway`](https://hub.docker.com/r/artflow/gateway) | `2.1.0` | `8080` | Gateway routes the service collections |
 
 Each owner adds a row here when their service is published, together with its block in
 `deploy/docker-compose.yml`.
@@ -79,6 +80,8 @@ docker compose ps        # every *-db is healthy and every service is Up
 ```
 
 - Health: `GET http://localhost:{8001,8002,8003,8004,8005,8006,8007,8008}/api/v1/health`
+- Gateway health: `GET http://localhost:8080/health`
+- Gateway upstream health: `GET http://localhost:8080/health/upstreams`
 - Swagger UI: `http://localhost:8003/docs`, `http://localhost:8004/docs`
 - Each service applies its database migrations on startup, so a fresh volume is usable at once.
   Data survives `docker compose down`. Only `docker compose down -v` deletes it.
