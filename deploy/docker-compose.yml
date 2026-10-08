@@ -112,16 +112,19 @@ services:
       - ./db/player_db.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
 
   player-service:
-    image: geografix/player-service:${PLAYER_SERVICE_VERSION:-2.0.1}
+    image: geografix/player-service:${PLAYER_SERVICE_VERSION:-2.0.2}
     restart: unless-stopped
     environment:
       <<: [*auth, *via-gateway]
       PORT: 8001
       DATABASE_URL: postgres://${PLAYER_DB_USER:-player}:${PLAYER_DB_PASSWORD}@player-db:5432/player_db?sslmode=disable
       SERVICE_JWT_SECRET: ${SERVICE_JWT_SECRET}
+      PLAYER_SIGNING_KEY_FILE: ${PLAYER_SIGNING_KEY_FILE:-/var/lib/player-service/signing-key.pem}
       AUTH_DEV_TOKENS: ${AUTH_DEV_TOKENS:-true}
       TASK_TIMEOUT_SECONDS: ${PLAYER_TASK_TIMEOUT_SECONDS:-15}
       MAX_CONCURRENT_REQUESTS: ${PLAYER_MAX_CONCURRENT_REQUESTS:-100}
+    volumes:
+      - player_signing_key_data:/var/lib/player-service
     depends_on:
       player-db:
         condition: service_healthy
@@ -327,6 +330,7 @@ services:
 
 volumes:
   player_db_data:
+  player_signing_key_data:
   game_db_data:
   exam_db_data:
   world_db_data:
