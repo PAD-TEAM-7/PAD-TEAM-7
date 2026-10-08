@@ -263,6 +263,56 @@ services:
       resource-db:
         condition: service_healthy
 
+  # --------------------------------------------------------------- API Gateway (Ilico Artemie)
+  gateway:
+    image: artflow/gateway:${GATEWAY_VERSION:-2.1.0}
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: 8080
+      LOG_LEVEL: ${GATEWAY_LOG_LEVEL:-info}
+      PLAYER_SERVICE_URL: http://player-service:8001
+      GAME_SERVICE_URL: http://game-service:8002
+      EXAM_SERVICE_URL: http://exam-service:8003
+      WORLD_SERVICE_URL: http://world-service:8004
+      ZOMBIE_SERVICE_URL: http://zombie-service:8005
+      RESOURCE_SERVICE_URL: http://resource-service:8006
+      BASE_SERVICE_URL: http://base-service:8007
+      CRAFTING_SERVICE_URL: http://crafting-service:8008
+      GAME_WS_PUBLIC_URL: ${GAME_WS_PUBLIC_URL:-ws://localhost:8002}
+      UPSTREAM_CONNECT_TIMEOUT_SECONDS: ${GATEWAY_CONNECT_TIMEOUT_SECONDS:-2}
+      UPSTREAM_TIMEOUT_SECONDS: ${GATEWAY_UPSTREAM_TIMEOUT_SECONDS:-10}
+      UPSTREAM_MAX_CONNECTIONS: ${GATEWAY_UPSTREAM_MAX_CONNECTIONS:-200}
+      MAX_REQUEST_BODY_BYTES: ${GATEWAY_MAX_REQUEST_BODY_BYTES:-1048576}
+      TASK_TIMEOUT_SECONDS: ${GATEWAY_TASK_TIMEOUT_SECONDS:-15}
+      MAX_CONCURRENT_REQUESTS: ${GATEWAY_MAX_CONCURRENT_REQUESTS:-100}
+      MAX_CONCURRENT_PER_SERVICE: ${GATEWAY_MAX_CONCURRENT_PER_SERVICE:-50}
+      DEBUG_ENDPOINTS: ${GATEWAY_DEBUG_ENDPOINTS:-false}
+      SERVICE_JWT_SECRET: ${SERVICE_JWT_SECRET:?SERVICE_JWT_SECRET is not set in .env}
+      GATEWAY_IDENTITY_SECRET: ${GATEWAY_IDENTITY_SECRET:?GATEWAY_IDENTITY_SECRET is not set in .env}
+      PLAYER_JWKS_URL: http://player-service:8001/api/v1/auth/jwks
+      PLAYER_JWT_ISSUER: player-service
+      LEGACY_AUTH_SERVICES: ${GATEWAY_LEGACY_AUTH_SERVICES:-}
+      DEV_TOKENS: ${GATEWAY_DEV_TOKENS:-false}
+    depends_on:
+      player-service:
+        condition: service_started
+      game-service:
+        condition: service_started
+      exam-service:
+        condition: service_started
+      world-service:
+        condition: service_started
+      zombie-service:
+        condition: service_started
+      resource-service:
+        condition: service_started
+      base-service:
+        condition: service_started
+      crafting-service:
+        condition: service_started
+
 volumes:
   player_db_data:
   game_db_data:
