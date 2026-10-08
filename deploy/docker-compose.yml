@@ -112,10 +112,10 @@ services:
       - ./db/player_db.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
 
   player-service:
-    image: geografix/player-service:${PLAYER_SERVICE_VERSION:-2.0.0}
+    image: geografix/player-service:${PLAYER_SERVICE_VERSION:-2.0.1}
     restart: unless-stopped
     environment:
-      <<: *via-gateway
+      <<: [*auth, *via-gateway]
       PORT: 8001
       DATABASE_URL: postgres://${PLAYER_DB_USER:-player}:${PLAYER_DB_PASSWORD}@player-db:5432/player_db?sslmode=disable
       SERVICE_JWT_SECRET: ${SERVICE_JWT_SECRET}
@@ -138,7 +138,7 @@ services:
       - ./db/game_db.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
 
   game-service:
-    image: geografix/game-service:${GAME_SERVICE_VERSION:-2.0.0}
+    image: geografix/game-service:${GAME_SERVICE_VERSION:-2.0.1}
     restart: unless-stopped
     ports:
       - "8002:8002"
