@@ -1,6 +1,6 @@
 # In Kahoots with the Undead
 
-**FAF.PAD21.1 — Autumn 2026 · Laboratories 0–2**
+**FAF.PAD21.1 — Autumn 2026 · Laboratory 0**
 Distributed systems project: surviving the university exam season during a zombie apocalypse.
 
 Players wake up in FAF Cab from the power nap of the century, armed with an axe and a laptop, and
@@ -9,7 +9,7 @@ zombies — all while exams are still in session. Not even the professors turnin
 enough to cancel the PBL presentations.
 
 This is the **Common Public Repository (CPR)**. It holds the system design, the complete
-communication contract between eight domain services and the API Gateway, and the team's engineering workflow. The
+communication contract between all eight microservices, and the team's engineering workflow. The
 services themselves live in private repositories linked here as submodules.
 
 ---
@@ -26,15 +26,15 @@ services themselves live in private repositories linked here as submodules.
 | 6 | Resource Service | Roenco Maxim | Go | `8006` | `resource_db` |
 | 7 | Base Service | Gancear Nichita | TypeScript | `8007` | `base_db` |
 | 8 | Crafting Service | Gancear Nichita | TypeScript | `8008` | `crafting_db` |
-| 9 | [Gateway Service](./gateway-service) | Team | Banned language (Lab 2) | `8080` | None |
 
-Supporting infrastructure: **Service Registry** on `8500`.
+Supporting infrastructure: **API Gateway** on `8080`, **Service Registry** on `8500`.
 
 ![System architecture: game client, API gateway on 8080, the eight services grouped by language and owner with one database each, and the service registry on 8500](png_arh/architecture.drawio.png)
 
-Every REST request from the client enters through the Gateway, which validates authorization and
-routes by path. It negotiates WebSocket connections and returns a direct service URL so it does not
-remain in the data path. Domain services keep ownership of their private databases.
+Every request from the client enters through the gateway, which terminates TLS, validates the JWT
+and routes on path. Services find each other through the registry rather than through hardcoded
+hosts. Note that each service reaches exactly one database and no other — that single rule is what
+the rest of this document is built to protect.
 
 *The diagram is an editable draw.io file — open `png_arh/architecture.drawio.png` at [app.diagrams.net](https://app.diagrams.net) to change it, and re-export over the same file so the picture and its source never drift apart.*
 
@@ -3071,7 +3071,7 @@ issue is closed by the PR; and the Project board card has moved to **Done** auto
 .
 ├── README.md                          ← this document: design + contract + workflow
 ├── .gitignore
-├── .gitmodules                        ← the nine private service repositories
+├── .gitmodules                        ← the eight private service repositories
 ├── .github/
 │   ├── PULL_REQUEST_TEMPLATE.md
 │   └── CODEOWNERS
@@ -3088,15 +3088,14 @@ issue is closed by the PR; and the Project board card has moved to **Done** auto
 ├── zombie-service/                    ← submodule (private)
 ├── resource-service/                  ← submodule (private)
 ├── base-service/                      ← submodule (private)
-├── crafting-service/                  ← submodule (private)
-└── gateway-service/                   ← submodule (private)
+└── crafting-service/                  ← submodule (private)
 ```
 
 ### Submodules
 
-The nine service repositories are **private by design**. The Gateway repository grants access to the
-professor and all team members because it contains shared routing and integration logic. Each domain
-service remains independently owned and follows the access rules agreed by the team.
+The eight service repositories are **private by design**. Only the professor is invited to them —
+team members integrate against the contract in this document rather than by reading each other's
+source, which is what keeps the boundaries honest.
 
 ```bash
 git clone --recurse-submodules https://github.com/<GITHUB_ORG>/<CPR_REPO>.git
