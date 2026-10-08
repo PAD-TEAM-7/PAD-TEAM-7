@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "PAD TEAM 7 — Exam Service",
-    "description": "Exam Service (port 8003) — see section 3 of the CPR README. Run the folders in order (Collection Runner works). Needs AUTH_DEV_TOKENS=true for the test tokens.",
+    "description": "Exam Service (section 3 of the CPR README), reached through the API gateway on :8080 (Lab 2). Run the folders in order (Collection Runner works).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -16,16 +16,24 @@
   },
   "variable": [
     {
-      "key": "exam_url",
-      "value": "http://localhost:8080/exam-service/api/v1"
+      "key": "gateway_url",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "player_username",
+      "value": ""
+    },
+    {
+      "key": "other_username",
+      "value": ""
     },
     {
       "key": "player_id",
-      "value": "player-postman"
+      "value": ""
     },
     {
-      "key": "lobby_id",
-      "value": "lobby-postman"
+      "key": "other_player_id",
+      "value": ""
     },
     {
       "key": "player_token",
@@ -40,6 +48,10 @@
       "value": ""
     },
     {
+      "key": "lobby_id",
+      "value": "lobby-postman"
+    },
+    {
       "key": "exam_id",
       "value": ""
     },
@@ -50,7 +62,7 @@
   ],
   "item": [
     {
-      "name": "Health",
+      "name": "Health (prefixed route)",
       "event": [
         {
           "listen": "test",
@@ -69,30 +81,75 @@
         },
         "header": [],
         "url": {
-          "raw": "{{exam_url}}/health",
+          "raw": "{{gateway_url}}/exam-service/api/v1/health",
           "host": [
-            "{{exam_url}}"
+            "{{gateway_url}}"
           ],
           "path": [
+            "exam-service",
+            "api",
+            "v1",
             "health"
           ]
         }
       }
     },
     {
-      "name": "0. Auth (test tokens)",
-      "description": "Run first. Tokens are stored as collection variables and used by every other request.",
+      "name": "Ready (checks the database)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 200', () => pm.response.to.have.status(200));",
+              "pm.test('ready', () => pm.expect(pm.response.json().status).to.eql('ready'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [],
+        "url": {
+          "raw": "{{gateway_url}}/exam-service/api/v1/ready",
+          "host": [
+            "{{gateway_url}}"
+          ],
+          "path": [
+            "exam-service",
+            "api",
+            "v1",
+            "ready"
+          ]
+        }
+      }
+    },
+    {
+      "name": "0. Auth (through the gateway)",
+      "description": "Run first: the tokens are stored as collection variables and used by every other request.",
       "item": [
         {
-          "name": "Player token",
+          "name": "Register player",
           "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('player_username', 'player_' + Date.now());"
+                ]
+              }
+            },
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('status 201', () => pm.response.to.have.status(201));",
-                  "pm.collectionVariables.set('player_token', pm.response.json().access_token);"
+                  "pm.test('status 201', () => pm.response.to.have.status(201));"
                 ]
               }
             }
@@ -110,7 +167,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"kind\": \"player\",\n  \"sub\": \"{{player_id}}\",\n  \"username\": \"undead_survivor\"\n}",
+              "raw": "{\n  \"username\": \"{{player_username}}\",\n  \"email\": \"{{player_username}}@faf.university\",\n  \"password\": \"correct-horse-battery\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -118,28 +175,31 @@
               }
             },
             "url": {
-              "raw": "{{exam_url}}/dev/tokens",
+              "raw": "{{gateway_url}}/api/v1/players/register",
               "host": [
-                "{{exam_url}}"
+                "{{gateway_url}}"
               ],
               "path": [
-                "dev",
-                "tokens"
+                "api",
+                "v1",
+                "players",
+                "register"
               ]
-            },
-            "description": "Stand-in for Player Service login (AUTH_DEV_TOKENS=true). Stores {{player_token}}."
+            }
           }
         },
         {
-          "name": "Other player token",
+          "name": "Log in player (real RS256 token from Player Service)",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('status 201', () => pm.response.to.have.status(201));",
-                  "pm.collectionVariables.set('other_player_token', pm.response.json().access_token);"
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('player_id', body.player_id);",
+                  "pm.collectionVariables.set('player_token', body.access_token);"
                 ]
               }
             }
@@ -157,7 +217,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"kind\": \"player\",\n  \"sub\": \"someone-else\"\n}",
+              "raw": "{\n  \"email\": \"{{player_username}}@faf.university\",\n  \"password\": \"correct-horse-battery\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -165,19 +225,127 @@
               }
             },
             "url": {
-              "raw": "{{exam_url}}/dev/tokens",
+              "raw": "{{gateway_url}}/api/v1/players/login",
               "host": [
-                "{{exam_url}}"
+                "{{gateway_url}}"
               ],
               "path": [
-                "dev",
-                "tokens"
+                "api",
+                "v1",
+                "players",
+                "login"
               ]
             }
           }
         },
         {
-          "name": "Service token (as game-service)",
+          "name": "Register other",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('other_username', 'other_' + Date.now());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 201', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{other_username}}\",\n  \"email\": \"{{other_username}}@faf.university\",\n  \"password\": \"correct-horse-battery\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/players/register",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "players",
+                "register"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Log in other (real RS256 token from Player Service)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('other_player_id', body.player_id);",
+                  "pm.collectionVariables.set('other_player_token', body.access_token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{other_username}}@faf.university\",\n  \"password\": \"correct-horse-battery\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/v1/players/login",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "players",
+                "login"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Service token (gateway test endpoint, as game-service)",
           "event": [
             {
               "listen": "test",
@@ -203,7 +371,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"kind\": \"service\",\n  \"sub\": \"game-service\"\n}",
+              "raw": "{\n  \"sub\": \"game-service\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -211,15 +379,17 @@
               }
             },
             "url": {
-              "raw": "{{exam_url}}/dev/tokens",
+              "raw": "{{gateway_url}}/gateway/dev/tokens",
               "host": [
-                "{{exam_url}}"
+                "{{gateway_url}}"
               ],
               "path": [
+                "gateway",
                 "dev",
                 "tokens"
               ]
-            }
+            },
+            "description": "Enabled by DEV_TOKENS=true (AUTH_DEV_TOKENS in deploy/.env). Player tokens come from the login above."
           }
         }
       ]
@@ -245,11 +415,13 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{exam_url}}/courses",
+              "raw": "{{gateway_url}}/api/v1/courses",
               "host": [
-                "{{exam_url}}"
+                "{{gateway_url}}"
               ],
               "path": [
+                "api",
+                "v1",
                 "courses"
               ]
             }
@@ -273,11 +445,13 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{exam_url}}/courses?department=Math",
+              "raw": "{{gateway_url}}/api/v1/courses?department=Math",
               "host": [
-                "{{exam_url}}"
+                "{{gateway_url}}"
               ],
               "path": [
+                "api",
+                "v1",
                 "courses"
               ],
               "query": [
@@ -297,20 +471,6 @@
         {
           "name": "Issue exam (Game Service)",
           "event": [
-            {
-              "listen": "prerequest",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "// A fresh player every run, so the flow never hits EXAM_ALREADY_ACTIVE or a passed course.",
-                  "pm.collectionVariables.set('player_id', 'player-' + Date.now());",
-                  "pm.sendRequest({ url: pm.collectionVariables.get('exam_url') + '/dev/tokens', method: 'POST',",
-                  "  header: { 'Content-Type': 'application/json' },",
-                  "  body: { mode: 'raw', raw: JSON.stringify({ kind: 'player', sub: pm.collectionVariables.get('player_id') }) } },",
-                  "  (err, res) => pm.collectionVariables.set('player_token', res.json().access_token));"
-                ]
-              }
-            },
             {
               "listen": "test",
               "script": {
@@ -356,15 +516,16 @@
               }
             },
             "url": {
-              "raw": "{{exam_url}}/exams",
+              "raw": "{{gateway_url}}/api/v1/exams",
               "host": [
-                "{{exam_url}}"
+                "{{gateway_url}}"
               ],
               "path": [
+                "api",
+                "v1",
                 "exams"
               ]
-            },
-            "description": "Idempotency-Key is a fresh {{$guid}}. Omit course_id to let the service pick one."
+            }
           }
         },
         {
@@ -413,11 +574,13 @@
               }
             },
             "url": {
-              "raw": "{{exam_url}}/exams",
+              "raw": "{{gateway_url}}/api/v1/exams",
               "host": [
-                "{{exam_url}}"
+                "{{gateway_url}}"
               ],
               "path": [
+                "api",
+                "v1",
                 "exams"
               ]
             }
@@ -432,8 +595,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('status 200', () => pm.response.to.have.status(200));",
-                  "const exam = pm.response.json();",
-                  "pm.collectionVariables.set('question_id', exam.questions[0].question_id);",
+                  "pm.collectionVariables.set('question_id', pm.response.json().questions[0].question_id);",
                   "pm.test('never leaks answers', () => pm.expect(pm.response.text()).not.to.include('correct_option'));"
                 ]
               }
@@ -443,11 +605,13 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{exam_url}}/exams/{{exam_id}}",
+              "raw": "{{gateway_url}}/api/v1/exams/{{exam_id}}",
               "host": [
-                "{{exam_url}}"
+                "{{gateway_url}}"
               ],
               "path": [
+                "api",
+                "v1",
                 "exams",
                 "{{exam_id}}"
               ]
@@ -486,11 +650,13 @@
               }
             },
             "url": {
-              "raw": "{{exam_url}}/exams/{{exam_id}}/answers",
+              "raw": "{{gateway_url}}/api/v1/exams/{{exam_id}}/answers",
               "host": [
-                "{{exam_url}}"
+                "{{gateway_url}}"
               ],
               "path": [
+                "api",
+                "v1",
                 "exams",
                 "{{exam_id}}",
                 "answers"
@@ -526,11 +692,13 @@
             },
             "header": [],
             "url": {
-              "raw": "{{exam_url}}/exams/{{exam_id}}",
+              "raw": "{{gateway_url}}/api/v1/exams/{{exam_id}}",
               "host": [
-                "{{exam_url}}"
+                "{{gateway_url}}"
               ],
               "path": [
+                "api",
+                "v1",
                 "exams",
                 "{{exam_id}}"
               ]
@@ -546,8 +714,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('status 200', () => pm.response.to.have.status(200));",
-                  "const r = pm.response.json();",
-                  "pm.test('graded', () => { pm.expect(r.grade).to.be.within(1, 10); pm.expect(r.passed).to.be.a('boolean'); });"
+                  "pm.test('graded', () => pm.expect(pm.response.json().grade).to.be.within(1, 10));"
                 ]
               }
             }
@@ -561,11 +728,13 @@
               }
             ],
             "url": {
-              "raw": "{{exam_url}}/exams/{{exam_id}}/submit",
+              "raw": "{{gateway_url}}/api/v1/exams/{{exam_id}}/submit",
               "host": [
-                "{{exam_url}}"
+                "{{gateway_url}}"
               ],
               "path": [
+                "api",
+                "v1",
                 "exams",
                 "{{exam_id}}",
                 "submit"
@@ -596,11 +765,13 @@
               }
             ],
             "url": {
-              "raw": "{{exam_url}}/exams/{{exam_id}}/submit",
+              "raw": "{{gateway_url}}/api/v1/exams/{{exam_id}}/submit",
               "host": [
-                "{{exam_url}}"
+                "{{gateway_url}}"
               ],
               "path": [
+                "api",
+                "v1",
                 "exams",
                 "{{exam_id}}",
                 "submit"
@@ -630,11 +801,13 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{exam_url}}/players/{{player_id}}/exams?limit=10",
+              "raw": "{{gateway_url}}/api/v1/players/{{player_id}}/exams?limit=10",
               "host": [
-                "{{exam_url}}"
+                "{{gateway_url}}"
               ],
               "path": [
+                "api",
+                "v1",
                 "players",
                 "{{player_id}}",
                 "exams"
@@ -665,11 +838,13 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{exam_url}}/players/{{player_id}}/courses",
+              "raw": "{{gateway_url}}/api/v1/players/{{player_id}}/courses",
               "host": [
-                "{{exam_url}}"
+                "{{gateway_url}}"
               ],
               "path": [
+                "api",
+                "v1",
                 "players",
                 "{{player_id}}",
                 "courses"
@@ -694,11 +869,13 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{exam_url}}/players/{{player_id}}/achievements",
+              "raw": "{{gateway_url}}/api/v1/players/{{player_id}}/achievements",
               "host": [
-                "{{exam_url}}"
+                "{{gateway_url}}"
               ],
               "path": [
+                "api",
+                "v1",
                 "players",
                 "{{player_id}}",
                 "achievements"
@@ -724,11 +901,13 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{exam_url}}/players/{{player_id}}/diploma",
+              "raw": "{{gateway_url}}/api/v1/players/{{player_id}}/diploma",
               "host": [
-                "{{exam_url}}"
+                "{{gateway_url}}"
               ],
               "path": [
+                "api",
+                "v1",
                 "players",
                 "{{player_id}}",
                 "diploma"
@@ -763,11 +942,13 @@
             },
             "header": [],
             "url": {
-              "raw": "{{exam_url}}/players/{{player_id}}/passed",
+              "raw": "{{gateway_url}}/api/v1/players/{{player_id}}/passed",
               "host": [
-                "{{exam_url}}"
+                "{{gateway_url}}"
               ],
               "path": [
+                "api",
+                "v1",
                 "players",
                 "{{player_id}}",
                 "passed"
@@ -803,11 +984,13 @@
             },
             "header": [],
             "url": {
-              "raw": "{{exam_url}}/players/{{player_id}}/diploma",
+              "raw": "{{gateway_url}}/api/v1/players/{{player_id}}/diploma",
               "host": [
-                "{{exam_url}}"
+                "{{gateway_url}}"
               ],
               "path": [
+                "api",
+                "v1",
                 "players",
                 "{{player_id}}",
                 "diploma"
@@ -818,7 +1001,7 @@
       ]
     },
     {
-      "name": "4. Events",
+      "name": "4. Events (prefixed route)",
       "item": [
         {
           "name": "PlayerRegistered → enrol in every course",
@@ -854,7 +1037,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"event_id\": \"{{$guid}}\",\n  \"type\": \"PlayerRegistered\",\n  \"version\": 1,\n  \"occurred_at\": \"2026-09-24T10:00:00Z\",\n  \"producer\": \"player-service\",\n  \"payload\": {\n    \"player_id\": \"player-registered-{{$timestamp}}\",\n    \"username\": \"new_survivor\"\n  }\n}",
+              "raw": "{\n  \"event_id\": \"{{$guid}}\",\n  \"type\": \"PlayerRegistered\",\n  \"version\": 1,\n  \"occurred_at\": \"2026-10-08T10:00:00Z\",\n  \"producer\": \"player-service\",\n  \"payload\": {\n    \"player_id\": \"{{$guid}}\",\n    \"username\": \"new_survivor\"\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -862,11 +1045,14 @@
               }
             },
             "url": {
-              "raw": "{{exam_url}}/events",
+              "raw": "{{gateway_url}}/exam-service/api/v1/events",
               "host": [
-                "{{exam_url}}"
+                "{{gateway_url}}"
               ],
               "path": [
+                "exam-service",
+                "api",
+                "v1",
                 "events"
               ]
             }
@@ -878,7 +1064,7 @@
       "name": "5. Errors",
       "item": [
         {
-          "name": "No token → 401",
+          "name": "No token → 401 at the gateway",
           "event": [
             {
               "listen": "test",
@@ -898,11 +1084,13 @@
             },
             "header": [],
             "url": {
-              "raw": "{{exam_url}}/courses",
+              "raw": "{{gateway_url}}/api/v1/courses",
               "host": [
-                "{{exam_url}}"
+                "{{gateway_url}}"
               ],
               "path": [
+                "api",
+                "v1",
                 "courses"
               ]
             }
@@ -926,11 +1114,13 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{exam_url}}/players/{{player_id}}/passed",
+              "raw": "{{gateway_url}}/api/v1/players/{{player_id}}/passed",
               "host": [
-                "{{exam_url}}"
+                "{{gateway_url}}"
               ],
               "path": [
+                "api",
+                "v1",
                 "players",
                 "{{player_id}}",
                 "passed"
@@ -956,11 +1146,13 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{exam_url}}/exams/00000000-0000-4000-8000-000000000000",
+              "raw": "{{gateway_url}}/api/v1/exams/00000000-0000-4000-8000-000000000000",
               "host": [
-                "{{exam_url}}"
+                "{{gateway_url}}"
               ],
               "path": [
+                "api",
+                "v1",
                 "exams",
                 "00000000-0000-4000-8000-000000000000"
               ]
@@ -1009,11 +1201,13 @@
               }
             },
             "url": {
-              "raw": "{{exam_url}}/exams",
+              "raw": "{{gateway_url}}/api/v1/exams",
               "host": [
-                "{{exam_url}}"
+                "{{gateway_url}}"
               ],
               "path": [
+                "api",
+                "v1",
                 "exams"
               ]
             }

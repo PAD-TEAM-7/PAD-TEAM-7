@@ -30,12 +30,11 @@ services themselves live in private repositories linked here as submodules.
 
 Supporting infrastructure: **Service Registry** on `8500`.
 
-![System architecture: game client, API gateway on 8080, the eight services grouped by language and owner with one database each, and the service registry on 8500](png_arh/architecture.drawio.png)
+![System architecture (Lab 2): game client, API gateway on 8080 in Python as the only entry point, the eight services grouped by language and owner with one database each, and the service registry on 8500](png_arh/architecture.drawio.png)
 
-Every REST request from clients and domain services enters through the Python Gateway, which
-validates authorization and routes by path. It negotiates WebSocket connections and returns a
-direct Game Service URL so it does not remain in the live data path. Domain services keep ownership
-of their private databases.
+Every REST request from the client enters through the Python Gateway, which validates authorization
+and routes by path. It negotiates WebSocket connections and returns a direct Game Service URL so it
+does not remain in the live data path. Domain services keep ownership of their private databases.
 
 *The diagram is an editable draw.io file — open `png_arh/architecture.drawio.png` at [app.diagrams.net](https://app.diagrams.net) to change it, and re-export over the same file so the picture and its source never drift apart.*
 
@@ -51,7 +50,8 @@ persisted in a named volume; the stateless Gateway needs no database.
 ### Requirements
 
 - Docker with Docker Compose v2 (Docker Desktop on Windows and macOS)
-- Free host ports `8001` through `8008` and `8080`
+- Free host ports `8080` (API Gateway) and `8002` (Game Service WebSocket). The other services
+  are not published: everything goes through the gateway
 - Internet access on the first run, to pull the images
 
 ### Published images
@@ -60,16 +60,18 @@ persisted in a named volume; the stateless Gateway needs no database.
 | --- | --- | --- | --- | --- | --- |
 | Player Service | Islam Abu Koush | [`geografix/player-service`](https://hub.docker.com/r/geografix/player-service) | `1.0.0` | `8001` | [`postman/player-service.postman_collection.json`](./postman/player-service.postman_collection.json) |
 | Game Service | Islam Abu Koush | [`geografix/game-service`](https://hub.docker.com/r/geografix/game-service) | `1.0.0` | `8002` | [`postman/game-service.postman_collection.json`](./postman/game-service.postman_collection.json) |
-| Exam Service | Ilico Artemie | [`artflow/exam-service`](https://hub.docker.com/r/artflow/exam-service) | `1.0.0` | `8003` | [`postman/exam-service.postman_collection.json`](./postman/exam-service.postman_collection.json) |
-| World Service | Ilico Artemie | [`artflow/world-service`](https://hub.docker.com/r/artflow/world-service) | `1.0.0` | `8004` | [`postman/world-service.postman_collection.json`](./postman/world-service.postman_collection.json) |
+| Exam Service | Ilico Artemie | [`artflow/exam-service`](https://hub.docker.com/r/artflow/exam-service) | `2.0.0` | `8003` | [`postman/exam-service.postman_collection.json`](./postman/exam-service.postman_collection.json) |
+| World Service | Ilico Artemie | [`artflow/world-service`](https://hub.docker.com/r/artflow/world-service) | `2.0.0` | `8004` | [`postman/world-service.postman_collection.json`](./postman/world-service.postman_collection.json) |
 | Zombie Service | Roenco Maxim | [`geografix/zombie-service`](https://hub.docker.com/r/geografix/zombie-service) | `1.0.0` | `8005` | [`postman/zombie-service.postman_collection.json`](./postman/zombie-service.postman_collection.json) |
 | Resource Service | Roenco Maxim | [`geografix/resource-service`](https://hub.docker.com/r/geografix/resource-service) | `1.0.0` | `8006` | [`postman/resource-service.postman_collection.json`](./postman/resource-service.postman_collection.json) |
 | Base Service | Gancear Nichita | [`nnick34567890/base-service`](https://hub.docker.com/r/nnick34567890/base-service) | `1.0.0` | `8007` | [`postman/base-service.postman_collection.json`](./postman/base-service.postman_collection.json) |
 | Crafting Service | Gancear Nichita | [`nnick34567890/crafting-service`](https://hub.docker.com/r/nnick34567890/crafting-service) | `1.0.0` | `8008` | [`postman/crafting-service.postman_collection.json`](./postman/crafting-service.postman_collection.json) |
-| Gateway Service | Ilico Artemie | [`artflow/gateway`](https://hub.docker.com/r/artflow/gateway) | `2.1.0` | `8080` | Gateway routes the service collections |
+| Gateway Service | Ilico Artemie | [`artflow/gateway`](https://hub.docker.com/r/artflow/gateway) | `2.1.0` | `8080` | [`postman/gateway.postman_collection.json`](./postman/gateway.postman_collection.json). Every collection goes through the gateway |
 
 Each owner adds a row here when their service is published, together with its block in
-`deploy/docker-compose.yml`.
+`deploy/docker-compose.yml`. Service ports are internal to the Docker network since Lab 2;
+`docker compose -f docker-compose.yml -f docker-compose.direct-ports.yml up -d` publishes them
+for debugging.
 
 ### Start
 
@@ -80,14 +82,16 @@ docker compose up -d
 docker compose ps        # every *-db is healthy and every service is Up
 ```
 
-- Service health through the Gateway: `GET http://localhost:8080/<service>-service/api/v1/health`
 - Gateway health: `GET http://localhost:8080/health`
-- Gateway upstream health: `GET http://localhost:8080/health/upstreams`
-- Swagger UI: `http://localhost:8003/docs`, `http://localhost:8004/docs`
+- Health of every service, through the gateway: `GET http://localhost:8080/health/upstreams`
+- One service: `GET http://localhost:8080/<service>/api/v1/health`, e.g. `/exam-service/api/v1/health`
+- Gateway Swagger UI: `http://localhost:8080/gateway/docs`. Service Swagger UIs (`:8003/docs`,
+  `:8004/docs`) need the direct-ports override above
 - Each service applies its database migrations on startup, so a fresh volume is usable at once.
   Data survives `docker compose down`. Only `docker compose down -v` deletes it.
 - `SERVICE_JWT_SECRET` must be the **same for every service**, since they sign and verify each other's
-  service tokens with it.
+  service tokens with it. `GATEWAY_IDENTITY_SECRET` (at least 32 characters) is shared by the gateway
+  and every service that trusts its identity headers.
 
 ### Database scripts
 
@@ -98,16 +102,17 @@ also applies its own schema at boot, so an existing database is left alone eithe
 
 ### Testing a service
 
-Each service ships a Postman collection in [`postman/`](./postman/). Every collection uses port
-`8080` and its Gateway service prefix; no collection calls ports `8001`-`8008` directly. Player
-Service registers and authenticates a fresh account. Protected requests use the resulting token or
-a service token issued by the Gateway's optional `POST /gateway/dev/tokens` demonstration endpoint.
+Each service ships a Postman collection in [`postman/`](./postman/). Import one and run its requests
+in order. Player Service registers and authenticates a fresh account. Game Service can mint Lab 1
+test tokens through `POST /api/v1/dev/tokens`; setting `AUTH_DEV_TOKENS=false` disables that route
+when every client uses Player Service's RS256 tokens.
 
-### REST routing
+### Running only part of the team's stack
 
-Compose fixes every inter-service URL to `http://gateway:8080/<service>-service`. The Gateway alone
-uses the private Docker addresses on ports `8001`-`8008`, so its logs provide one place to prove both
-client-to-service and service-to-service REST traffic passed through it.
+Every service treats an **empty** `*_SERVICE_URL` as *not deployed* and mocks that dependency: the
+call is logged rather than sent, and a deterministic answer comes back. So any subset of the eight
+services runs on its own, and pointing a variable at a real service removes the mock with no code
+change. What each mock returns is documented in that service's own README.
 
 ### Test
 
@@ -139,9 +144,75 @@ wing, such as `math-101` or `pad-201`, opens that wing in the player's lobby.
 
 ---
 
+## API Gateway (Lab 2)
+
+The gateway ([`gateway-service`](./gateway-service), Python) is the **single point of entry**. Every REST request,
+from the client and between services, goes through it. Its README is the full reference. These are
+the rules every service relies on.
+
+### Routing
+
+| Style | Example | Used by |
+| --- | --- | --- |
+| Contract path | `GET /api/v1/courses` → Exam | The client: the paths of this contract, unchanged |
+| Service prefix | `POST /world-service/api/v1/events` → World `/api/v1/events` | Services calling each other, and paths every service has (`/events`, `/health`, `/ready`) |
+
+A service's `<NAME>_SERVICE_URL` is `http://gateway:8080/<name>-service`. HTTP clients must
+**append** the path to that base and not replace it: `new URL(path, base)` in TypeScript drops the
+prefix. Paths no service owns get `404 ROUTE_NOT_FOUND`.
+
+### Authentication: verified at the gateway, never forwarded
+
+The gateway verifies every token: player tokens with Player Service's JWKS (RS256), service
+tokens with `SERVICE_JWT_SECRET` (HS256, `aud` = the target, e.g. `exam-service`; the short
+`exam` and `gateway` are accepted). A protected route without a valid token gets `401` there.
+**`Authorization` is not forwarded.** The service receives the verified caller in signed headers:
+
+| Header | Value |
+| --- | --- |
+| `X-Auth-Kind` | `player` or `service` |
+| `X-Auth-Subject` | player id, or calling service name |
+| `X-Auth-Roles` | comma-separated roles |
+| `X-Auth-Username` | player username (empty for services) |
+| `X-Auth-Timestamp` | Unix seconds at signing |
+| `X-Auth-Signature` | hex HMAC-SHA256 of the canonical string, keyed with `GATEWAY_IDENTITY_SECRET` |
+
+Canonical string: `v1`, kind, subject, roles, username, timestamp, `X-Request-Id`, joined by `\n`.
+A service recomputes the HMAC, compares it in constant time, rejects timestamps older than 60
+seconds, and ignores `Authorization` entirely. The gateway drops any `X-Auth-*` header a client
+sends. Services still verifying tokens themselves are listed in `GATEWAY_LEGACY_AUTH_SERVICES` and keep
+receiving the token until they migrate: see
+[`docs/lab2-gateway-migration.md`](./docs/lab2-gateway-migration.md).
+
+### WebSockets: negotiated, never carried
+
+`GET /ws/v1/lobbies/{lobby_id}` on the gateway (player token) answers
+`{ "url": "ws://<game>/ws/v1/lobbies/{lobby_id}?token=…", "expires_at": … }`. The client opens the
+socket **directly on Game Service** (`GAME_WS_PUBLIC_URL`, port `8002`), so a long-lived stream
+never occupies the gateway. A socket opened on the gateway gets one `redirect` message and close
+code `4302`.
+
+### Timeouts and concurrency limits
+
+The gateway and every service bound their work and say so in the error envelope:
+
+| Status | Code | Meaning |
+| --- | --- | --- |
+| `429` | `CONCURRENCY_LIMIT_REACHED` | Too many requests in progress (gateway, one service through the gateway, or the service itself). `Retry-After: 1` |
+| `504` | `TASK_TIMEOUT` | The request did not finish within the task timeout |
+| `504` | `UPSTREAM_TIMEOUT` | The gateway gave up waiting for the service |
+| `503` | `DEPENDENCY_UNAVAILABLE` | The gateway cannot reach the service |
+
+### Releases
+
+Every repository publishes from GitHub Actions on merge to `main`: `<owner>/<service>:<version>`
+and `:latest`. The major version is the lab number (`2.x.y` for Lab 2), and a published version is
+never overwritten.
+
 ## Table of contents
 
 - [Running the system](#running-the-system)
+- [API Gateway (Lab 2)](#api-gateway-lab-2)
 - [Team and ownership](#team-and-ownership)
 - [Service boundaries](#service-boundaries)
 - [Technology choices and trade-offs](#technology-choices-and-trade-offs)
@@ -1702,9 +1773,10 @@ Every non-2xx response uses one shape, so clients and services parse errors iden
 | `404` | Resource does not exist | `PLAYER_NOT_FOUND` |
 | `409` | Conflicts with current state | `INSUFFICIENT_RESOURCES`, `ACTION_ALREADY_ACTIVE` |
 | `422` | Well-formed but not satisfiable by game rules | `MAX_LEVEL_REACHED` |
-| `429` | Rate or cycle limit hit | `KIKI_ALREADY_FED` |
+| `429` | Rate, cycle or concurrency limit hit | `KIKI_ALREADY_FED`, `CONCURRENCY_LIMIT_REACHED` |
 | `500` | Unexpected failure | `INTERNAL_ERROR` |
 | `503` | A required downstream service is unreachable | `DEPENDENCY_UNAVAILABLE` |
+| `504` | The task, or the gateway's wait for a service, timed out | `TASK_TIMEOUT`, `UPSTREAM_TIMEOUT` |
 
 ### Health and readiness
 
@@ -1717,7 +1789,8 @@ DEPENDENCY_UNAVAILABLE` when that fails. Container health checks poll `/ready`.
 
 | Header | Direction | Purpose |
 | --- | --- | --- |
-| `Authorization: Bearer <jwt>` | in | Player or service token |
+| `Authorization: Bearer <jwt>` | in, at the gateway | Player or service token. Not forwarded to services |
+| `X-Auth-*` | gateway → service | The verified caller, HMAC-signed (see *API Gateway*) |
 | `Idempotency-Key: <uuid>` | in | Required on every mutating cross-service call |
 | `X-Request-Id: <uuid>` | both | Propagated unchanged across every hop for tracing |
 
@@ -1734,7 +1807,8 @@ DEPENDENCY_UNAVAILABLE` when that fails. Container health checks poll `/ready`.
 
 ## Authentication and authorization
 
-**Player Service is the only issuer of tokens.** Everything else validates them.
+**Player Service is the only issuer of tokens.** Since Lab 2 the **API gateway** validates them
+and hands services a signed identity instead (see [API Gateway](#api-gateway-lab-2)).
 
 ### Player token
 
@@ -1763,8 +1837,8 @@ through environment variables and never committed.
 { "sub": "crafting-service", "roles": ["service"], "aud": "resource-service", "exp": 1789000000 }
 ```
 
-Endpoints marked **`service`** below reject player tokens outright and are not routable from the
-public gateway. Endpoints marked **`player`** accept a player token; a player may only act on their
+Endpoints marked **`service`** below reject player tokens outright: the gateway routes them, since
+services call each other through it, and the service answers `403` to a player. Endpoints marked **`player`** accept a player token; a player may only act on their
 own `sub` unless they hold `moderator`.
 
 ---
