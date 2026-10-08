@@ -120,6 +120,8 @@ services:
       DATABASE_URL: postgres://${PLAYER_DB_USER:-player}:${PLAYER_DB_PASSWORD}@player-db:5432/player_db?sslmode=disable
       SERVICE_JWT_SECRET: ${SERVICE_JWT_SECRET}
       AUTH_DEV_TOKENS: ${AUTH_DEV_TOKENS:-true}
+      TASK_TIMEOUT_SECONDS: ${PLAYER_TASK_TIMEOUT_SECONDS:-15}
+      MAX_CONCURRENT_REQUESTS: ${PLAYER_MAX_CONCURRENT_REQUESTS:-100}
     depends_on:
       player-db:
         condition: service_healthy
@@ -146,6 +148,8 @@ services:
       DATABASE_URL: postgres://${GAME_DB_USER:-game}:${GAME_DB_PASSWORD}@game-db:5432/game_db?sslmode=disable
       PLAYER_JWKS_URL: http://gateway:8080/api/v1/auth/jwks
       ACTION_TIME_SCALE: ${ACTION_TIME_SCALE:-0.01}
+      TASK_TIMEOUT_SECONDS: ${GAME_TASK_TIMEOUT_SECONDS:-15}
+      MAX_CONCURRENT_REQUESTS: ${GAME_MAX_CONCURRENT_REQUESTS:-100}
     depends_on:
       game-db:
         condition: service_healthy
