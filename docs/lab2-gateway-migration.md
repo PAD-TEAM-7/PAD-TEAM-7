@@ -10,7 +10,7 @@ Service already follow every step below and can be used as a reference.
 | 7 — WebSocket negotiation | Game only: keep validating `?token=` on upgrade | Gateway hands out Game's URL |
 | 8 — task timeout + concurrency limit | Your own limits, with the codes below | Each owner |
 | 9 — CI to DockerHub | A workflow that pushes `<version>` and `latest` on merge to `main` | Each owner |
-| 10 — authorization at the gateway | Trust the signed `X-Auth-*` identity, ignore `Authorization` | Each owner, then leave `LEGACY_AUTH_SERVICES` |
+| 10 — authorization at the gateway | Trust the signed `X-Auth-*` identity, ignore `Authorization` | Each owner, then leave `GATEWAY_LEGACY_AUTH_SERVICES` |
 
 ## 6. Calling other services through the gateway
 
@@ -82,7 +82,7 @@ func GatewayIdentity(r *http.Request, secret []byte) (kind, subject string, role
 
 The TypeScript version is `src/auth/gateway-identity.verifier.ts` in exam-service. Read
 `GATEWAY_IDENTITY_SECRET` from the environment (compose already passes it). When your service trusts
-the identity, remove it from `LEGACY_AUTH_SERVICES` in `deploy/.env.example`. From then on the
+the identity, remove it from `GATEWAY_LEGACY_AUTH_SERVICES` in `deploy/.env.example`. From then on the
 gateway stops forwarding your `Authorization` header.
 
 ## Integration findings from testing the whole stack

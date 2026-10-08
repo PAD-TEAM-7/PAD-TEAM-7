@@ -52,14 +52,27 @@ services:
     ports:
       - "8080:8080"
     environment:
+      PORT: 8080
+      LOG_LEVEL: ${GATEWAY_LOG_LEVEL:-info}
       # Authentication: every token is verified here and never forwarded (grade 10).
       SERVICE_JWT_SECRET: ${SERVICE_JWT_SECRET:?SERVICE_JWT_SECRET is not set in .env}
       GATEWAY_IDENTITY_SECRET: ${GATEWAY_IDENTITY_SECRET:?GATEWAY_IDENTITY_SECRET is not set in .env}
       PLAYER_JWKS_URL: http://player-service:8001/api/v1/auth/jwks
-      # Services that still verify tokens themselves also receive the token while they migrate.
-      LEGACY_AUTH_SERVICES: ${LEGACY_AUTH_SERVICES:-}
-      DEV_TOKENS: ${AUTH_DEV_TOKENS:-true}
+      PLAYER_JWT_ISSUER: player-service
+      # Services that still verify tokens themselves keep receiving the token until they trust the
+      # gateway identity. Grade 10 is complete when this list is empty.
+      LEGACY_AUTH_SERVICES: ${GATEWAY_LEGACY_AUTH_SERVICES:-}
+      DEV_TOKENS: ${GATEWAY_DEV_TOKENS:-false}
       GAME_WS_PUBLIC_URL: ${GAME_WS_PUBLIC_URL:-ws://localhost:8002}
+      # Limits (grade 8).
+      UPSTREAM_CONNECT_TIMEOUT_SECONDS: ${GATEWAY_CONNECT_TIMEOUT_SECONDS:-2}
+      UPSTREAM_TIMEOUT_SECONDS: ${GATEWAY_UPSTREAM_TIMEOUT_SECONDS:-10}
+      UPSTREAM_MAX_CONNECTIONS: ${GATEWAY_UPSTREAM_MAX_CONNECTIONS:-200}
+      MAX_REQUEST_BODY_BYTES: ${GATEWAY_MAX_REQUEST_BODY_BYTES:-1048576}
+      TASK_TIMEOUT_SECONDS: ${GATEWAY_TASK_TIMEOUT_SECONDS:-15}
+      MAX_CONCURRENT_REQUESTS: ${GATEWAY_MAX_CONCURRENT_REQUESTS:-100}
+      MAX_CONCURRENT_PER_SERVICE: ${GATEWAY_MAX_CONCURRENT_PER_SERVICE:-50}
+      DEBUG_ENDPOINTS: ${GATEWAY_DEBUG_ENDPOINTS:-false}
       # The gateway is the one component that addresses the services directly.
       PLAYER_SERVICE_URL: http://player-service:8001
       GAME_SERVICE_URL: http://game-service:8002
@@ -69,6 +82,23 @@ services:
       RESOURCE_SERVICE_URL: http://resource-service:8006
       BASE_SERVICE_URL: http://base-service:8007
       CRAFTING_SERVICE_URL: http://crafting-service:8008
+    depends_on:
+      player-service:
+        condition: service_started
+      game-service:
+        condition: service_started
+      exam-service:
+        condition: service_started
+      world-service:
+        condition: service_started
+      zombie-service:
+        condition: service_started
+      resource-service:
+        condition: service_started
+      base-service:
+        condition: service_started
+      crafting-service:
+        condition: service_started
 
   # --------------------------------------------------------------- Player Service (Islam Abu Koush)
   player-db:

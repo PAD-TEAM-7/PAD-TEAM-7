@@ -1,6 +1,6 @@
 # In Kahoots with the Undead
 
-**FAF.PAD21.1 — Autumn 2026 · Laboratory 0**
+**FAF.PAD21.1 — Autumn 2026 · Laboratories 0–2**
 Distributed systems project: surviving the university exam season during a zombie apocalypse.
 
 Players wake up in FAF Cab from the power nap of the century, armed with an axe and a laptop, and
@@ -9,7 +9,7 @@ zombies — all while exams are still in session. Not even the professors turnin
 enough to cancel the PBL presentations.
 
 This is the **Common Public Repository (CPR)**. It holds the system design, the complete
-communication contract between all eight microservices, and the team's engineering workflow. The
+communication contract between eight domain services and the API Gateway, and the team's engineering workflow. The
 services themselves live in private repositories linked here as submodules.
 
 ---
@@ -26,15 +26,15 @@ services themselves live in private repositories linked here as submodules.
 | 6 | Resource Service | Roenco Maxim | Go | `8006` | `resource_db` |
 | 7 | Base Service | Gancear Nichita | TypeScript | `8007` | `base_db` |
 | 8 | Crafting Service | Gancear Nichita | TypeScript | `8008` | `crafting_db` |
+| 9 | [Gateway Service](./gateway-service) | Ilico Artemie | Python | `8080` | None |
 
-Supporting infrastructure: **API Gateway** on `8080`, **Service Registry** on `8500`.
+Supporting infrastructure: **Service Registry** on `8500`.
 
 ![System architecture (Lab 2): game client, API gateway on 8080 in Python as the only entry point, the eight services grouped by language and owner with one database each, and the service registry on 8500](png_arh/architecture.drawio.png)
 
-Every request from the client enters through the gateway, which terminates TLS, validates the JWT
-and routes on path. Services find each other through the registry rather than through hardcoded
-hosts. Note that each service reaches exactly one database and no other — that single rule is what
-the rest of this document is built to protect.
+Every REST request from the client enters through the Python Gateway, which validates authorization
+and routes by path. It negotiates WebSocket connections and returns a direct Game Service URL so it
+does not remain in the live data path. Domain services keep ownership of their private databases.
 
 *The diagram is an editable draw.io file — open `png_arh/architecture.drawio.png` at [app.diagrams.net](https://app.diagrams.net) to change it, and re-export over the same file so the picture and its source never drift apart.*
 
@@ -44,8 +44,8 @@ the rest of this document is built to protect.
 
 Every service is published on DockerHub as a **public image tagged with its version**. The team
 deployment in [`deploy/docker-compose.yml`](./deploy/docker-compose.yml) runs those images directly.
-It uses no Dockerfiles and builds nothing. Each service gets its own PostgreSQL 16 database, persisted
-in a named volume.
+It uses no Dockerfiles and builds nothing. Each domain service gets its own PostgreSQL 16 database,
+persisted in a named volume; the stateless Gateway needs no database.
 
 ### Requirements
 
@@ -58,7 +58,6 @@ in a named volume.
 
 | Service | Owner | Image | Version | Port | Postman collection |
 | --- | --- | --- | --- | --- | --- |
-| **API Gateway** | Ilico Artemie | [`artflow/gateway`](https://hub.docker.com/r/artflow/gateway) | `2.1.0` | `8080` | [`postman/gateway.postman_collection.json`](./postman/gateway.postman_collection.json) |
 | Player Service | Islam Abu Koush | [`geografix/player-service`](https://hub.docker.com/r/geografix/player-service) | `1.0.0` | `8001` | [`postman/player-service.postman_collection.json`](./postman/player-service.postman_collection.json) |
 | Game Service | Islam Abu Koush | [`geografix/game-service`](https://hub.docker.com/r/geografix/game-service) | `1.0.0` | `8002` | [`postman/game-service.postman_collection.json`](./postman/game-service.postman_collection.json) |
 | Exam Service | Ilico Artemie | [`artflow/exam-service`](https://hub.docker.com/r/artflow/exam-service) | `2.0.0` | `8003` | [`postman/exam-service.postman_collection.json`](./postman/exam-service.postman_collection.json) |
@@ -67,6 +66,7 @@ in a named volume.
 | Resource Service | Roenco Maxim | [`geografix/resource-service`](https://hub.docker.com/r/geografix/resource-service) | `1.0.0` | `8006` | [`postman/resource-service.postman_collection.json`](./postman/resource-service.postman_collection.json) |
 | Base Service | Gancear Nichita | [`nnick34567890/base-service`](https://hub.docker.com/r/nnick34567890/base-service) | `1.0.0` | `8007` | [`postman/base-service.postman_collection.json`](./postman/base-service.postman_collection.json) |
 | Crafting Service | Gancear Nichita | [`nnick34567890/crafting-service`](https://hub.docker.com/r/nnick34567890/crafting-service) | `1.0.0` | `8008` | [`postman/crafting-service.postman_collection.json`](./postman/crafting-service.postman_collection.json) |
+| Gateway Service | Ilico Artemie | [`artflow/gateway`](https://hub.docker.com/r/artflow/gateway) | `2.1.0` | `8080` | [`postman/gateway.postman_collection.json`](./postman/gateway.postman_collection.json). Every collection goes through the gateway |
 
 Each owner adds a row here when their service is published, together with its block in
 `deploy/docker-compose.yml`. Service ports are internal to the Docker network since Lab 2;
@@ -82,9 +82,11 @@ docker compose up -d
 docker compose ps        # every *-db is healthy and every service is Up
 ```
 
-- Health of everything, through the gateway: `GET http://localhost:8080/health/upstreams`
+- Gateway health: `GET http://localhost:8080/health`
+- Health of every service, through the gateway: `GET http://localhost:8080/health/upstreams`
 - One service: `GET http://localhost:8080/<service>/api/v1/health`, e.g. `/exam-service/api/v1/health`
-- Gateway Swagger UI: `http://localhost:8080/gateway/docs`
+- Gateway Swagger UI: `http://localhost:8080/gateway/docs`. Service Swagger UIs (`:8003/docs`,
+  `:8004/docs`) need the direct-ports override above
 - Each service applies its database migrations on startup, so a fresh volume is usable at once.
   Data survives `docker compose down`. Only `docker compose down -v` deletes it.
 - `SERVICE_JWT_SECRET` must be the **same for every service**, since they sign and verify each other's
@@ -144,7 +146,7 @@ wing, such as `math-101` or `pad-201`, opens that wing in the player's lobby.
 
 ## API Gateway (Lab 2)
 
-The gateway ([`gateway`](./gateway), Python) is the **single point of entry**. Every REST request,
+The gateway ([`gateway-service`](./gateway-service), Python) is the **single point of entry**. Every REST request,
 from the client and between services, goes through it. Its README is the full reference. These are
 the rules every service relies on.
 
@@ -178,7 +180,7 @@ tokens with `SERVICE_JWT_SECRET` (HS256, `aud` = the target, e.g. `exam-service`
 Canonical string: `v1`, kind, subject, roles, username, timestamp, `X-Request-Id`, joined by `\n`.
 A service recomputes the HMAC, compares it in constant time, rejects timestamps older than 60
 seconds, and ignores `Authorization` entirely. The gateway drops any `X-Auth-*` header a client
-sends. Services still verifying tokens themselves are listed in `LEGACY_AUTH_SERVICES` and keep
+sends. Services still verifying tokens themselves are listed in `GATEWAY_LEGACY_AUTH_SERVICES` and keep
 receiving the token until they migrate: see
 [`docs/lab2-gateway-migration.md`](./docs/lab2-gateway-migration.md).
 
@@ -3146,7 +3148,7 @@ issue is closed by the PR; and the Project board card has moved to **Done** auto
 .
 ├── README.md                          ← this document: design + contract + workflow
 ├── .gitignore
-├── .gitmodules                        ← the eight private service repositories
+├── .gitmodules                        ← the nine private service repositories
 ├── .github/
 │   ├── PULL_REQUEST_TEMPLATE.md
 │   └── CODEOWNERS
@@ -3156,7 +3158,6 @@ issue is closed by the PR; and the Project board card has moved to **Done** auto
 │   └── db/                            ← one schema script per database
 ├── postman/                           ← one Postman collection per service
 ├── guide-private.md                   ← how to create and link the private repos
-├── gateway/                           ← submodule (private): the API gateway, Python
 ├── player-service/                    ← submodule (private)
 ├── game-service/                      ← submodule (private)
 ├── exam-service/                      ← submodule (private)
@@ -3164,16 +3165,15 @@ issue is closed by the PR; and the Project board card has moved to **Done** auto
 ├── zombie-service/                    ← submodule (private)
 ├── resource-service/                  ← submodule (private)
 ├── base-service/                      ← submodule (private)
-└── crafting-service/                  ← submodule (private)
+├── crafting-service/                  ← submodule (private)
+└── gateway-service/                   ← shared Gateway submodule (private)
 ```
 
 ### Submodules
 
-The eight service repositories are **private by design**. Only the professor is invited to them —
-team members integrate against the contract in this document rather than by reading each other's
-source, which is what keeps the boundaries honest. The gateway repository (Lab 2) is private too,
-with the professor and the whole team as collaborators: every service depends on its routing, so
-every owner reviews it.
+The nine service repositories are **private by design**. The Gateway repository is shared with the
+professor and every team member because it owns cross-service routing and integration. Domain
+service access follows the ownership rules agreed by the team.
 
 ```bash
 git clone --recurse-submodules https://github.com/<GITHUB_ORG>/<CPR_REPO>.git

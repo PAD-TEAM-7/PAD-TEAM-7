@@ -22,6 +22,6 @@
 [submodule "resource-service"]
 	path = resource-service
 	url = https://github.com/MaxRoenco/resource-service.git
-[submodule "gateway"]
-	path = gateway
+[submodule "gateway-service"]
+	path = gateway-service
 	url = https://github.com/cyberArtik/gateway.git
