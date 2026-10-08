@@ -12,6 +12,35 @@ Service already follow every step below and can be used as a reference.
 | 9 — CI to DockerHub | A workflow that pushes `<version>` and `latest` on merge to `main` | Each owner |
 | 10 — authorization at the gateway | Trust the signed `X-Auth-*` identity, ignore `Authorization` | Each owner, then leave `GATEWAY_LEGACY_AUTH_SERVICES` |
 
+## Who does what
+
+The gateway, Exam and World are done (`artflow/gateway:2.1.0`, `artflow/exam-service:2.0.0`,
+`artflow/world-service:2.0.0`). Each other owner does the same for their two services:
+
+| Owner | Services | To do |
+| --- | --- | --- |
+| Islam Abu Koush | Player, Game | 8, 9, 10 below for both. Game: merge the gateway-prefix fix (game-service#4), sign service tokens with `aud: "<name>-service"`, answer `ping` with `pong`. Player: `POST /api/v1/events`, and `404` instead of `500` on `/xp` for a bad id |
+| Roenco Maxim | Zombie, Resource | 8, 9, 10 below for both |
+| Gancear Nichita | Base, Crafting | 8, 9, 10 below for both. Check that the TypeScript clients append paths to the base URL (section 6) |
+
+Release order for each service, so the stack keeps working at every step:
+
+1. Add the limits (8) and the gateway identity (10) to the service. Keep accepting the token as well
+   if you like: the gateway already sends the signed identity to every service, including the ones
+   still in `GATEWAY_LEGACY_AUTH_SERVICES`.
+2. Merge to `main`: CI (9) publishes `<owner>/<service>:2.0.0` and `latest`.
+3. One CPR PR: set your `<SERVICE>_VERSION` to `2.0.0` in `deploy/.env.example` and remove your
+   service from `GATEWAY_LEGACY_AUTH_SERVICES`. Grade 10 is complete for the team when that list is
+   empty.
+
+Two things that silently break grade 6:
+
+- **An old Lab 1 `.env`.** It sets `PLAYER_SERVICE_URL=http://player-service:8001` and the like,
+  and a value in `.env` overrides the gateway default in compose: the services then bypass the
+  gateway without any error. Start again from `.env.example`, which leaves those lines commented.
+- **Postman on `localhost:8001`–`8008`.** Those ports are no longer published. Use
+  `http://localhost:8080/<service>-service/...` or the contract paths on `http://localhost:8080`.
+
 ## 6. Calling other services through the gateway
 
 `deploy/docker-compose.yml` sets every service URL to the gateway, e.g.
