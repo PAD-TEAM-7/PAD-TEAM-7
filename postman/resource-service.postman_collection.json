@@ -1,7 +1,7 @@
 {
   "info": {"name": "PAD TEAM 7 - Resource Service", "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"},
   "variable": [
-    {"key":"baseUrl","value":"http://localhost:8006"}, {"key":"token","value":""},
+    {"key":"baseUrl","value":"http://localhost:8080/resource-service"}, {"key":"token","value":""},
     {"key":"lobbyId","value":""}, {"key":"playerId","value":""}, {"key":"sourcePoolId","value":""},
     {"key":"targetPoolId","value":""}, {"key":"gatherKey","value":""}, {"key":"consumeTxId","value":""}
   ],
