@@ -18,7 +18,7 @@
  "variable": [
   {
    "key": "base_url",
-   "value": "http://localhost:8007/api/v1"
+   "value": "http://localhost:8080/base-service/api/v1"
   },
   {
    "key": "player_id",

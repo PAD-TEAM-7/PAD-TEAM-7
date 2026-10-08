@@ -32,9 +32,10 @@ Supporting infrastructure: **Service Registry** on `8500`.
 
 ![System architecture: game client, API gateway on 8080, the eight services grouped by language and owner with one database each, and the service registry on 8500](png_arh/architecture.drawio.png)
 
-Every REST request from the client enters through the Python Gateway, which validates authorization
-and routes by path. It negotiates WebSocket connections and returns a direct Game Service URL so it
-does not remain in the live data path. Domain services keep ownership of their private databases.
+Every REST request from clients and domain services enters through the Python Gateway, which
+validates authorization and routes by path. It negotiates WebSocket connections and returns a
+direct Game Service URL so it does not remain in the live data path. Domain services keep ownership
+of their private databases.
 
 *The diagram is an editable draw.io file — open `png_arh/architecture.drawio.png` at [app.diagrams.net](https://app.diagrams.net) to change it, and re-export over the same file so the picture and its source never drift apart.*
 
@@ -79,7 +80,7 @@ docker compose up -d
 docker compose ps        # every *-db is healthy and every service is Up
 ```
 
-- Health: `GET http://localhost:{8001,8002,8003,8004,8005,8006,8007,8008}/api/v1/health`
+- Service health through the Gateway: `GET http://localhost:8080/<service>-service/api/v1/health`
 - Gateway health: `GET http://localhost:8080/health`
 - Gateway upstream health: `GET http://localhost:8080/health/upstreams`
 - Swagger UI: `http://localhost:8003/docs`, `http://localhost:8004/docs`
@@ -97,17 +98,16 @@ also applies its own schema at boot, so an existing database is left alone eithe
 
 ### Testing a service
 
-Each service ships a Postman collection in [`postman/`](./postman/). Import one and run its requests
-in order. Player Service registers and authenticates a fresh account. Game Service can mint Lab 1
-test tokens through `POST /api/v1/dev/tokens`; setting `AUTH_DEV_TOKENS=false` disables that route
-when every client uses Player Service's RS256 tokens.
+Each service ships a Postman collection in [`postman/`](./postman/). Every collection uses port
+`8080` and its Gateway service prefix; no collection calls ports `8001`-`8008` directly. Player
+Service registers and authenticates a fresh account. Protected requests use the resulting token or
+a service token issued by the Gateway's optional `POST /gateway/dev/tokens` demonstration endpoint.
 
-### Running only part of the team's stack
+### REST routing
 
-Every service treats an **empty** `*_SERVICE_URL` as *not deployed* and mocks that dependency: the
-call is logged rather than sent, and a deterministic answer comes back. So any subset of the eight
-services runs on its own, and pointing a variable at a real service removes the mock with no code
-change. What each mock returns is documented in that service's own README.
+Compose fixes every inter-service URL to `http://gateway:8080/<service>-service`. The Gateway alone
+uses the private Docker addresses on ports `8001`-`8008`, so its logs provide one place to prove both
+client-to-service and service-to-service REST traffic passed through it.
 
 ### Test
 

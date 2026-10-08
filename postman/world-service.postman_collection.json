@@ -17,7 +17,7 @@
   "variable": [
     {
       "key": "world_url",
-      "value": "http://localhost:8004/api/v1"
+      "value": "http://localhost:8080/world-service/api/v1"
     },
     {
       "key": "player_id",

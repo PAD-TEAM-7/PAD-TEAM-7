@@ -17,7 +17,7 @@
   "variable": [
     {
       "key": "exam_url",
-      "value": "http://localhost:8003/api/v1"
+      "value": "http://localhost:8080/exam-service/api/v1"
     },
     {
       "key": "player_id",

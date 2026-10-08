@@ -5,8 +5,8 @@
 #   cp .env.example .env    # fill in the secrets — .env is never committed
 #   docker compose up -d
 #
-# Services whose URL is left empty are mocked by their callers (the call is logged, not sent),
-# so any subset of the team's services can run on its own.
+# Clients enter through port 8080. Service-to-service REST calls return through the Gateway's
+# service prefixes; only the Gateway connects directly to ports 8001-8008.
 name: pad-team-7
 
 x-postgres: &postgres
@@ -71,13 +71,13 @@ services:
       <<: *auth
       PORT: 8002
       DATABASE_URL: postgres://${GAME_DB_USER:-game}:${GAME_DB_PASSWORD}@game-db:5432/game_db?sslmode=disable
-      PLAYER_JWKS_URL: http://player-service:8001/api/v1/auth/jwks
-      PLAYER_SERVICE_URL: http://player-service:8001
-      WORLD_SERVICE_URL: ${WORLD_SERVICE_URL:-}
-      BASE_SERVICE_URL: ${BASE_SERVICE_URL:-}
-      RESOURCE_SERVICE_URL: ${RESOURCE_SERVICE_URL:-}
-      EXAM_SERVICE_URL: ${EXAM_SERVICE_URL:-}
-      ZOMBIE_SERVICE_URL: ${ZOMBIE_SERVICE_URL:-}
+      PLAYER_JWKS_URL: http://gateway:8080/player-service/api/v1/auth/jwks
+      PLAYER_SERVICE_URL: http://gateway:8080/player-service
+      WORLD_SERVICE_URL: http://gateway:8080/world-service
+      BASE_SERVICE_URL: http://gateway:8080/base-service
+      RESOURCE_SERVICE_URL: http://gateway:8080/resource-service
+      EXAM_SERVICE_URL: http://gateway:8080/exam-service
+      ZOMBIE_SERVICE_URL: http://gateway:8080/zombie-service
       ACTION_TIME_SCALE: ${ACTION_TIME_SCALE:-0.01}
     depends_on:
       game-db:
@@ -108,9 +108,9 @@ services:
       DB_USER: ${EXAM_DB_USER:-exam}
       DB_PASSWORD: ${EXAM_DB_PASSWORD}
       DB_NAME: exam_db
-      WORLD_SERVICE_URL: http://world-service:8004
-      PLAYER_SERVICE_URL: ${PLAYER_SERVICE_URL:-}
-      CRAFTING_SERVICE_URL: ${CRAFTING_SERVICE_URL:-}
+      WORLD_SERVICE_URL: http://gateway:8080/world-service
+      PLAYER_SERVICE_URL: http://gateway:8080/player-service
+      CRAFTING_SERVICE_URL: http://gateway:8080/crafting-service
     depends_on:
       exam-db:
         condition: service_healthy
@@ -138,9 +138,9 @@ services:
       DB_USER: ${WORLD_DB_USER:-world}
       DB_PASSWORD: ${WORLD_DB_PASSWORD}
       DB_NAME: world_db
-      RESOURCE_SERVICE_URL: ${RESOURCE_SERVICE_URL:-}
-      CRAFTING_SERVICE_URL: ${CRAFTING_SERVICE_URL:-}
-      GAME_SERVICE_URL: ${GAME_SERVICE_URL:-}
+      RESOURCE_SERVICE_URL: http://gateway:8080/resource-service
+      CRAFTING_SERVICE_URL: http://gateway:8080/crafting-service
+      GAME_SERVICE_URL: http://gateway:8080/game-service
     depends_on:
       world-db:
         condition: service_healthy
@@ -169,10 +169,10 @@ services:
       DB_USER: ${BASE_DB_USER:-base}
       DB_PASSWORD: ${BASE_DB_PASSWORD}
       DB_NAME: base_db
-      RESOURCE_SERVICE_URL: ${RESOURCE_SERVICE_URL:-}
-      WORLD_SERVICE_URL: http://world-service:8004
-      PLAYER_SERVICE_URL: ${PLAYER_SERVICE_URL:-}
-      EXAM_SERVICE_URL: http://exam-service:8003
+      RESOURCE_SERVICE_URL: http://gateway:8080/resource-service
+      WORLD_SERVICE_URL: http://gateway:8080/world-service
+      PLAYER_SERVICE_URL: http://gateway:8080/player-service
+      EXAM_SERVICE_URL: http://gateway:8080/exam-service
     depends_on:
       base-db:
         condition: service_healthy
@@ -201,11 +201,11 @@ services:
       DB_USER: ${CRAFTING_DB_USER:-crafting}
       DB_PASSWORD: ${CRAFTING_DB_PASSWORD}
       DB_NAME: crafting_db
-      RESOURCE_SERVICE_URL: ${RESOURCE_SERVICE_URL:-}
-      PLAYER_SERVICE_URL: ${PLAYER_SERVICE_URL:-}
-      EXAM_SERVICE_URL: http://exam-service:8003
-      WORLD_SERVICE_URL: http://world-service:8004
-      BASE_SERVICE_URL: http://base-service:8007
+      RESOURCE_SERVICE_URL: http://gateway:8080/resource-service
+      PLAYER_SERVICE_URL: http://gateway:8080/player-service
+      EXAM_SERVICE_URL: http://gateway:8080/exam-service
+      WORLD_SERVICE_URL: http://gateway:8080/world-service
+      BASE_SERVICE_URL: http://gateway:8080/base-service
     depends_on:
       crafting-db:
         condition: service_healthy
@@ -229,9 +229,9 @@ services:
       <<: *auth
       PORT: 8005
       DATABASE_URL: postgres://${ZOMBIE_DB_USER:-zombie}:${ZOMBIE_DB_PASSWORD}@zombie-db:5432/zombie_db?sslmode=disable
-      PLAYER_JWKS_URL: http://player-service:8001/api/v1/auth/jwks
-      PLAYER_SERVICE_URL: http://player-service:8001
-      RESOURCE_SERVICE_URL: http://resource-service:8006
+      PLAYER_JWKS_URL: http://gateway:8080/player-service/api/v1/auth/jwks
+      PLAYER_SERVICE_URL: http://gateway:8080/player-service
+      RESOURCE_SERVICE_URL: http://gateway:8080/resource-service
     depends_on:
       zombie-db:
         condition: service_healthy
@@ -293,7 +293,7 @@ services:
       GATEWAY_IDENTITY_SECRET: ${GATEWAY_IDENTITY_SECRET:?GATEWAY_IDENTITY_SECRET is not set in .env}
       PLAYER_JWKS_URL: http://player-service:8001/api/v1/auth/jwks
       PLAYER_JWT_ISSUER: player-service
-      LEGACY_AUTH_SERVICES: ${GATEWAY_LEGACY_AUTH_SERVICES:-}
+      LEGACY_AUTH_SERVICES: ${GATEWAY_LEGACY_AUTH_SERVICES:-player-service,game-service,exam-service,world-service,zombie-service,resource-service,base-service,crafting-service}
       DEV_TOKENS: ${GATEWAY_DEV_TOKENS:-false}
     depends_on:
       player-service:

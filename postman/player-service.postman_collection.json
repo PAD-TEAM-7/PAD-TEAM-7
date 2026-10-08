@@ -1,7 +1,7 @@
 {
   "info": {"name":"PAD Team 7 - Player Service","schema":"https://schema.getpostman.com/json/collection/v2.1.0/collection.json"},
   "variable": [
-    {"key":"baseUrl","value":"http://localhost:8001"},
+    {"key":"baseUrl","value":"http://localhost:8080/player-service"},
     {"key":"email","value":"postman-{{$randomUUID}}@faf.test"},
     {"key":"username","value":"user_{{$randomInt}}"},
     {"key":"password","value":"correct-horse-battery"},

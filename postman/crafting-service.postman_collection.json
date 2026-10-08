@@ -18,7 +18,7 @@
  "variable": [
   {
    "key": "crafting_url",
-   "value": "http://localhost:8008/api/v1"
+   "value": "http://localhost:8080/crafting-service/api/v1"
   },
   {
    "key": "player_id",
