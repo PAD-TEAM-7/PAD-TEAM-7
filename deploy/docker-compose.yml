@@ -232,7 +232,7 @@ services:
       - ./db/base_db.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
 
   base-service:
-    image: nnick34567890/base-service:${BASE_SERVICE_VERSION:-2.1.0}
+    image: nnick34567890/base-service:${BASE_SERVICE_VERSION:-2.1.2}
     restart: unless-stopped
     environment:
       <<: [*auth, *via-gateway]
@@ -259,7 +259,7 @@ services:
       - ./db/crafting_db.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
 
   crafting-service:
-    image: nnick34567890/crafting-service:${CRAFTING_SERVICE_VERSION:-2.1.0}
+    image: nnick34567890/crafting-service:${CRAFTING_SERVICE_VERSION:-2.1.2}
     restart: unless-stopped
     environment:
       <<: [*auth, *via-gateway]
