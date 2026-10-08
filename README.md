@@ -3071,7 +3071,7 @@ issue is closed by the PR; and the Project board card has moved to **Done** auto
 .
 ├── README.md                          ← this document: design + contract + workflow
 ├── .gitignore
-├── .gitmodules                        ← the eight private service repositories
+├── .gitmodules                        ← the nine private service repositories
 ├── .github/
 │   ├── PULL_REQUEST_TEMPLATE.md
 │   └── CODEOWNERS
@@ -3088,14 +3088,15 @@ issue is closed by the PR; and the Project board card has moved to **Done** auto
 ├── zombie-service/                    ← submodule (private)
 ├── resource-service/                  ← submodule (private)
 ├── base-service/                      ← submodule (private)
-└── crafting-service/                  ← submodule (private)
+├── crafting-service/                  ← submodule (private)
+└── gateway-service/                   ← shared Gateway submodule (private)
 ```
 
 ### Submodules
 
-The eight service repositories are **private by design**. Only the professor is invited to them —
-team members integrate against the contract in this document rather than by reading each other's
-source, which is what keeps the boundaries honest.
+The nine service repositories are **private by design**. The Gateway repository is shared with the
+professor and every team member because it owns cross-service routing and integration. Domain
+service access follows the ownership rules agreed by the team.
 
 ```bash
 git clone --recurse-submodules https://github.com/<GITHUB_ORG>/<CPR_REPO>.git
