@@ -1,9 +1,9 @@
 # System Architecture
 
-The CPR is the public contract repository. Each service owns one domain and its private database;
-services communicate through versioned HTTP APIs and selected domain events. The Game Service is
-the runtime coordinator, while Player Service issues tokens and Resource Service is the atomic
-resource write hub.
+The CPR is the public contract repository. Lab 2 adds the Gateway as the ninth service and the only
+client-facing REST entry point. Each domain service owns its private database; services communicate
+through versioned HTTP APIs and selected domain events. The Gateway validates authorization, routes
+REST traffic, negotiates direct WebSocket connections, and enforces request limits.
 
 ```mermaid
 flowchart LR
