@@ -47,6 +47,14 @@
   {
    "key": "replay_key",
    "value": ""
+  },
+  {
+   "key": "gatewayUrl",
+   "value": "http://localhost:8080"
+  },
+  {
+   "key": "pmUsername",
+   "value": ""
   }
  ],
  "item": [
@@ -85,14 +93,71 @@
    "name": "0. Auth (test tokens)",
    "item": [
     {
-     "name": "Issue player token",
+     "name": "Register player (Player Service, through the gateway)",
+     "event": [
+      {
+       "listen": "prerequest",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.collectionVariables.set('pmUsername', 'crafting_' + Date.now() + Math.floor(Math.random() * 1000));"
+        ]
+       }
+      },
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('player registered', () => pm.response.to.have.status(201));",
+         "pm.collectionVariables.set('player_id', pm.response.json().player_id);"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{gatewayUrl}}/api/v1/players/register",
+       "host": [
+        "{{gatewayUrl}}"
+       ],
+       "path": [
+        "api",
+        "v1",
+        "players",
+        "register"
+       ]
+      },
+      "auth": {
+       "type": "noauth"
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{\"username\": \"{{pmUsername}}\", \"email\": \"{{pmUsername}}@faf.test\", \"password\": \"correct-horse-battery\"}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     }
+    },
+    {
+     "name": "Log in player (real RS256 token)",
      "event": [
       {
        "listen": "test",
        "script": {
         "type": "text/javascript",
         "exec": [
-         "pm.test('status 200', () => pm.response.to.have.status(200));",
+         "pm.test('player logged in', () => pm.response.to.have.status(200));",
          "pm.collectionVariables.set('player_token', pm.response.json().access_token);"
         ]
        }
@@ -107,13 +172,15 @@
        }
       ],
       "url": {
-       "raw": "{{crafting_url}}/dev/tokens",
+       "raw": "{{gatewayUrl}}/api/v1/players/login",
        "host": [
-        "{{crafting_url}}"
+        "{{gatewayUrl}}"
        ],
        "path": [
-        "dev",
-        "tokens"
+        "api",
+        "v1",
+        "players",
+        "login"
        ]
       },
       "auth": {
@@ -121,7 +188,7 @@
       },
       "body": {
        "mode": "raw",
-       "raw": "{\n  \"kind\": \"player\",\n  \"sub\": \"{{player_id}}\"\n}",
+       "raw": "{\"email\": \"{{pmUsername}}@faf.test\", \"password\": \"correct-horse-battery\"}",
        "options": {
         "raw": {
          "language": "json"
@@ -138,7 +205,7 @@
        "script": {
         "type": "text/javascript",
         "exec": [
-         "pm.test('status 200', () => pm.response.to.have.status(200));",
+         "pm.test('service token issued by the gateway', () => pm.response.to.have.status(201));",
          "pm.collectionVariables.set('service_token', pm.response.json().access_token);"
         ]
        }
@@ -153,11 +220,12 @@
        }
       ],
       "url": {
-       "raw": "{{crafting_url}}/dev/tokens",
+       "raw": "{{gatewayUrl}}/gateway/dev/tokens",
        "host": [
-        "{{crafting_url}}"
+        "{{gatewayUrl}}"
        ],
        "path": [
+        "gateway",
         "dev",
         "tokens"
        ]
@@ -167,7 +235,7 @@
       },
       "body": {
        "mode": "raw",
-       "raw": "{\n  \"kind\": \"service\",\n  \"sub\": \"game-service\"\n}",
+       "raw": "{\"sub\": \"game-service\", \"audience\": \"crafting-service\"}",
        "options": {
         "raw": {
          "language": "json"
