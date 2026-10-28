@@ -9,6 +9,11 @@
 # host, except Game on 8002, whose WebSocket the gateway hands to clients directly. To reach the
 # services directly while debugging:
 #   docker compose -f docker-compose.yml -f docker-compose.direct-ports.yml up -d
+#
+# Lab 3: services run as several instances (deploy.replicas). Each instance registers in
+# Discovery Service on startup and deregisters on shutdown; the gateway balances requests
+# across the registered instances round-robin. Add or remove instances at runtime with:
+#   docker compose up -d --scale exam-service=2
 name: pad-team-7
 
 x-postgres: &postgres
@@ -41,13 +46,29 @@ x-via-gateway: &via-gateway
   RESOURCE_SERVICE_URL: ${RESOURCE_SERVICE_URL:-http://gateway:8080/resource-service}
   BASE_SERVICE_URL: ${BASE_SERVICE_URL:-http://gateway:8080/base-service}
   CRAFTING_SERVICE_URL: ${CRAFTING_SERVICE_URL:-http://gateway:8080/crafting-service}
+  # Lab 3: where every instance registers itself on startup (CPR → Discovery Service).
+  DISCOVERY_SERVICE_URL: ${DISCOVERY_SERVICE_URL:-http://discovery-service:8500}
 
 services:
+  # ------------------------------------------------------ Discovery Service (Ilico Artemie)
+  # Lab 3: the registry of running instances. Internal only (port 8500 on the Docker
+  # network). Written in Python. Its image has a built-in health check.
+  discovery-service:
+    image: artflow/discovery-service:${DISCOVERY_SERVICE_VERSION:-3.0.0}
+    restart: unless-stopped
+    environment:
+      PORT: 8500
+      LOG_LEVEL: ${DISCOVERY_SERVICE_LOG_LEVEL:-info}
+      SERVICE_JWT_SECRET: ${SERVICE_JWT_SECRET:?SERVICE_JWT_SECRET is not set in .env}
+      # An instance sends a heartbeat every 5 s; one silent for 15 s is evicted.
+      HEARTBEAT_INTERVAL_SECONDS: ${DISCOVERY_HEARTBEAT_INTERVAL_SECONDS:-5}
+      INSTANCE_TTL_SECONDS: ${DISCOVERY_INSTANCE_TTL_SECONDS:-15}
+
   # ----------------------------------------------------------------- API Gateway (Ilico Artemie)
   # The single point of entry: every REST request — from the client and between services — goes
   # through it. Written in Python. Its image has a built-in health check.
   gateway:
-    image: artflow/gateway:${GATEWAY_VERSION:-2.1.0}
+    image: artflow/gateway:${GATEWAY_VERSION:-3.0.0}
     restart: unless-stopped
     ports:
       - "8080:8080"
@@ -73,7 +94,11 @@ services:
       MAX_CONCURRENT_REQUESTS: ${GATEWAY_MAX_CONCURRENT_REQUESTS:-100}
       MAX_CONCURRENT_PER_SERVICE: ${GATEWAY_MAX_CONCURRENT_PER_SERVICE:-50}
       DEBUG_ENDPOINTS: ${GATEWAY_DEBUG_ENDPOINTS:-false}
-      # The gateway is the one component that addresses the services directly.
+      # Lab 3: requests go round-robin to the instances registered in Discovery Service,
+      # reloaded every 2 s. The gateway registers itself too.
+      DISCOVERY_SERVICE_URL: http://discovery-service:8500
+      DISCOVERY_REFRESH_SECONDS: ${GATEWAY_DISCOVERY_REFRESH_SECONDS:-2}
+      # Fallback addresses, for a service with no registered instance yet.
       PLAYER_SERVICE_URL: http://player-service:8001
       GAME_SERVICE_URL: http://game-service:8002
       EXAM_SERVICE_URL: http://exam-service:8003
@@ -83,6 +108,8 @@ services:
       BASE_SERVICE_URL: http://base-service:8007
       CRAFTING_SERVICE_URL: http://crafting-service:8008
     depends_on:
+      discovery-service:
+        condition: service_started
       player-service:
         condition: service_started
       game-service:
@@ -170,8 +197,11 @@ services:
       - exam_db_data:/var/lib/postgresql/data
 
   exam-service:
-    image: artflow/exam-service:${EXAM_SERVICE_VERSION:-2.0.0}
+    image: artflow/exam-service:${EXAM_SERVICE_VERSION:-3.0.0}
     restart: unless-stopped
+    # Lab 3: several instances; each registers in Discovery Service.
+    deploy:
+      replicas: ${EXAM_REPLICAS:-3}
     environment:
       <<: [*auth, *via-gateway]
       AUTH_MODE: gateway
@@ -190,6 +220,8 @@ services:
     depends_on:
       exam-db:
         condition: service_healthy
+      discovery-service:
+        condition: service_started
 
   # ---------------------------------------------------------------- World Service (Ilico Artemie)
   world-db:
@@ -202,8 +234,11 @@ services:
       - world_db_data:/var/lib/postgresql/data
 
   world-service:
-    image: artflow/world-service:${WORLD_SERVICE_VERSION:-2.0.0}
+    image: artflow/world-service:${WORLD_SERVICE_VERSION:-3.0.0}
     restart: unless-stopped
+    # Lab 3: several instances; each registers in Discovery Service.
+    deploy:
+      replicas: ${WORLD_REPLICAS:-3}
     environment:
       <<: [*auth, *via-gateway]
       AUTH_MODE: gateway
@@ -222,6 +257,8 @@ services:
     depends_on:
       world-db:
         condition: service_healthy
+      discovery-service:
+        condition: service_started
 
   # ---------------------------------------------------------------- Base Service (Gancear Nichita)
   base-db:
