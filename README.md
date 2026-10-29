@@ -27,8 +27,10 @@ services themselves live in private repositories linked here as submodules.
 | 7 | Base Service | Gancear Nichita | TypeScript | `8007` | `base_db` |
 | 8 | Crafting Service | Gancear Nichita | TypeScript | `8008` | `crafting_db` |
 | 9 | [Gateway Service](./gateway-service) | Ilico Artemie | Python | `8080` | None |
+| 10 | [Discovery Service](./discovery-service) | Ilico Artemie | Python | `8500` (internal) | None |
 
-Supporting infrastructure: **Service Registry** on `8500`.
+Since Lab 3 every service can run as several instances: each registers in **Discovery Service**
+and the gateway balances requests across them (see [Discovery Service (Lab 3)](#discovery-service-lab-3)).
 
 ![System architecture (Lab 2): game client, API gateway on 8080 in Python as the only entry point, the eight services grouped by language and owner with one database each, and the service registry on 8500](png_arh/architecture.drawio.png)
 
@@ -58,15 +60,16 @@ persisted in a named volume; the stateless Gateway needs no database.
 
 | Service | Owner | Image | Version | Port | Postman collection |
 | --- | --- | --- | --- | --- | --- |
-| Player Service | Islam Abu Koush | [`geografix/player-service`](https://hub.docker.com/r/geografix/player-service) | `1.0.0` | `8001` | [`postman/player-service.postman_collection.json`](./postman/player-service.postman_collection.json) |
-| Game Service | Islam Abu Koush | [`geografix/game-service`](https://hub.docker.com/r/geografix/game-service) | `1.0.0` | `8002` | [`postman/game-service.postman_collection.json`](./postman/game-service.postman_collection.json) |
-| Exam Service | Ilico Artemie | [`artflow/exam-service`](https://hub.docker.com/r/artflow/exam-service) | `2.0.0` | `8003` | [`postman/exam-service.postman_collection.json`](./postman/exam-service.postman_collection.json) |
-| World Service | Ilico Artemie | [`artflow/world-service`](https://hub.docker.com/r/artflow/world-service) | `2.0.0` | `8004` | [`postman/world-service.postman_collection.json`](./postman/world-service.postman_collection.json) |
-| Zombie Service | Roenco Maxim | [`geografix/zombie-service`](https://hub.docker.com/r/geografix/zombie-service) | `1.0.0` | `8005` | [`postman/zombie-service.postman_collection.json`](./postman/zombie-service.postman_collection.json) |
-| Resource Service | Roenco Maxim | [`geografix/resource-service`](https://hub.docker.com/r/geografix/resource-service) | `1.0.0` | `8006` | [`postman/resource-service.postman_collection.json`](./postman/resource-service.postman_collection.json) |
+| Player Service | Islam Abu Koush | [`geografix/player-service`](https://hub.docker.com/r/geografix/player-service) | `2.0.2` | `8001` | [`postman/player-service.postman_collection.json`](./postman/player-service.postman_collection.json) |
+| Game Service | Islam Abu Koush | [`geografix/game-service`](https://hub.docker.com/r/geografix/game-service) | `2.0.1` | `8002` | [`postman/game-service.postman_collection.json`](./postman/game-service.postman_collection.json) |
+| Exam Service | Ilico Artemie | [`artflow/exam-service`](https://hub.docker.com/r/artflow/exam-service) | `3.0.0` | `8003` | [`postman/exam-service.postman_collection.json`](./postman/exam-service.postman_collection.json) |
+| World Service | Ilico Artemie | [`artflow/world-service`](https://hub.docker.com/r/artflow/world-service) | `3.0.0` | `8004` | [`postman/world-service.postman_collection.json`](./postman/world-service.postman_collection.json) |
+| Zombie Service | Roenco Maxim | [`geografix/zombie-service`](https://hub.docker.com/r/geografix/zombie-service) | `2.0.0` | `8005` | [`postman/zombie-service.postman_collection.json`](./postman/zombie-service.postman_collection.json) |
+| Resource Service | Roenco Maxim | [`geografix/resource-service`](https://hub.docker.com/r/geografix/resource-service) | `2.0.0` | `8006` | [`postman/resource-service.postman_collection.json`](./postman/resource-service.postman_collection.json) |
 | Base Service | Gancear Nichita | [`nnick34567890/base-service`](https://hub.docker.com/r/nnick34567890/base-service) | `2.1.2` | `8007` | [`postman/base-service.postman_collection.json`](./postman/base-service.postman_collection.json) |
 | Crafting Service | Gancear Nichita | [`nnick34567890/crafting-service`](https://hub.docker.com/r/nnick34567890/crafting-service) | `2.1.2` | `8008` | [`postman/crafting-service.postman_collection.json`](./postman/crafting-service.postman_collection.json) |
-| Gateway Service | Ilico Artemie | [`artflow/gateway`](https://hub.docker.com/r/artflow/gateway) | `2.1.0` | `8080` | [`postman/gateway.postman_collection.json`](./postman/gateway.postman_collection.json). Every collection goes through the gateway |
+| Gateway Service | Ilico Artemie | [`artflow/gateway`](https://hub.docker.com/r/artflow/gateway) | `3.0.0` | `8080` | [`postman/gateway.postman_collection.json`](./postman/gateway.postman_collection.json). Every collection goes through the gateway |
+| Discovery Service | Ilico Artemie | [`artflow/discovery-service`](https://hub.docker.com/r/artflow/discovery-service) | `3.0.0` | `8500` | — (internal; `GET /api/v1/status`) |
 
 Each owner adds a row here when their service is published, together with its block in
 `deploy/docker-compose.yml`. Service ports are internal to the Docker network since Lab 2;
@@ -206,13 +209,122 @@ The gateway and every service bound their work and say so in the error envelope:
 ### Releases
 
 Every repository publishes from GitHub Actions on merge to `main`: `<owner>/<service>:<version>`
-and `:latest`. The major version is the lab number (`2.x.y` for Lab 2), and a published version is
-never overwritten.
+and `:latest`. The major version is the lab number (`2.x.y` for Lab 2, `3.x.y` for Lab 3), and a
+published version is never overwritten.
+
+## Discovery Service (Lab 3)
+
+Since Lab 3 a service runs as **two or three instances** (`deploy.replicas` in
+[`deploy/docker-compose.yml`](./deploy/docker-compose.yml)). **Discovery Service**
+([`discovery-service`](./discovery-service), Python, port `8500`, internal) is the registry of the
+instances that are running: each instance registers itself on startup and deregisters on shutdown,
+and the **gateway balances requests across the registered instances round-robin**. Instances are
+added or removed at runtime with `docker compose up -d --scale <service>=<n>`.
+
+```
+ instance (exam-service ×3) ──register / heartbeat / deregister──►  Discovery Service :8500
+                                                                          ▲ GET /api/v1/instances (every 2 s)
+ client ──► Gateway :8080 ──round-robin──► exam-service #1, #2, #3  ◄─────┘
+```
+
+### Registration API
+
+Every route but the probes needs a **service token**: HS256 with `SERVICE_JWT_SECRET`,
+`aud: discovery-service`, role `service`, `sub` = the calling service. A service registers, renews
+and removes only **its own** instances. Discovery Service is called directly (it is infrastructure,
+not routed through the gateway).
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `POST` | `/api/v1/instances` | Register on startup: `201` new, `200` known |
+| `PUT` | `/api/v1/instances/{instance_id}/heartbeat` | Renew. `404 INSTANCE_NOT_FOUND`: register again |
+| `DELETE` | `/api/v1/instances/{instance_id}` | Deregister on shutdown (`204`) |
+| `GET` | `/api/v1/instances?service=` | Live instances (used by the gateway) |
+| `GET` | `/api/v1/services` | Services and their number of instances |
+| `GET` | `/api/v1/health`, `/api/v1/status` | Probes, no token |
+
+```json
+POST /api/v1/instances
+{
+  "service": "exam-service",
+  "instance_id": "exam-service-3f2a9c1b7d4e",
+  "url": "http://172.20.0.5:8003",
+  "version": "3.0.0",
+  "metadata": { "hostname": "3f2a9c1b7d4e" }
+}
+→ 201 { "instance": { … }, "heartbeat_interval_seconds": 5.0, "ttl_seconds": 15.0 }
+```
+
+### Lifecycle every instance implements
+
+1. **Startup:** after the HTTP server listens, `POST /api/v1/instances` with
+   `instance_id = <service>-<container hostname>` (unique per replica) and
+   `url = http://<container IP>:<port>`. Retry with exponential backoff (1 s … 10 s) while
+   Discovery Service is not up.
+2. **Heartbeat** every `heartbeat_interval_seconds` (5 s). On `404`, register again: Service
+   Discovery restarted or evicted the instance.
+3. **Shutdown** (SIGTERM: `docker stop`, scale down): `DELETE` the instance before exiting.
+4. **Crash:** no heartbeat for `ttl_seconds` (15 s) and Discovery Service evicts the instance.
+
+### Load balancing at the gateway
+
+The gateway reloads `GET /api/v1/instances` every 2 s and sends request *n* of a service to
+instance *n mod count* (round-robin, one counter per service). Every answer carries
+`X-Upstream-Instance`, the instance that served it. A service with no registered instance falls
+back to its fixed address (`http://<service>:<port>`), so a service that has not migrated yet keeps
+working. `GET /gateway/instances` shows the current rotation.
+
+### Instance-agnostic services
+
+Any instance may receive any request, so no state may live in one instance's memory:
+
+- **Data** lives in the service's database, shared by its instances: idempotency keys, processed
+  event ids, outbox messages.
+- **Background work** claims rows with `SELECT … FOR UPDATE SKIP LOCKED` (outbox), so two instances
+  never process the same row.
+- **Migrations** run under a PostgreSQL advisory lock (`pg_advisory_lock`), so replicas starting
+  together on a fresh database never migrate at the same time.
+- **Long-lived connections** (Game's WebSockets) and in-memory timers need sticky routing or shared
+  state before such a service is scaled; until then it runs as one instance.
+
+### Status endpoint (every service)
+
+`GET /api/v1/status` (no token, exempt from the limits; the gateway's own is `GET /status`):
+
+```json
+{
+  "service": "exam-service",
+  "instance_id": "exam-service-3f2a9c1b7d4e",
+  "version": "3.0.0",
+  "status": "ok",
+  "started_at": "2026-10-28T15:00:00.000Z",
+  "uptime_seconds": 3600.2,
+  "load": { "in_flight": 4, "max_concurrent": 100, "utilization": 0.04, "requests_total": 9120 },
+  "checks": { "database": { "status": "ok", "latency_ms": 0.9 } },
+  "discovery": { "status": "registered", "url": "http://172.20.0.5:8003" },
+  "process": { "memory_rss_mb": 92.4 }
+}
+```
+
+`status` is `ok` or `degraded` (a dependency is down; the endpoint still answers `200`). `load` is
+what the service's concurrency limit counts; Discovery Service reads it to detect critical load.
+
+### Logs (every service)
+
+One line per event, `key=value`, starting with `event=`. At the default level (`LOG_LEVEL=info`)
+every service logs at least: `started` (configuration, never secrets), `request` (method, path,
+status, duration, caller, request id), every call to another service (target, status, duration),
+`registered` / `deregistered` / `heartbeat_rejected`, limits hit (`concurrency_limit_reached`,
+`task_timeout`) and failures with their reason. Probes are logged at `debug`. `X-Request-Id`
+ties a request's lines together across the gateway and the services.
+
+Migration guide for every owner: [`docs/lab3-scaling-migration.md`](./docs/lab3-scaling-migration.md).
 
 ## Table of contents
 
 - [Running the system](#running-the-system)
 - [API Gateway (Lab 2)](#api-gateway-lab-2)
+- [Discovery Service (Lab 3)](#discovery-service-lab-3)
 - [Team and ownership](#team-and-ownership)
 - [Service boundaries](#service-boundaries)
 - [Technology choices and trade-offs](#technology-choices-and-trade-offs)
@@ -3166,7 +3278,8 @@ issue is closed by the PR; and the Project board card has moved to **Done** auto
 ├── resource-service/                  ← submodule (private)
 ├── base-service/                      ← submodule (private)
 ├── crafting-service/                  ← submodule (private)
-└── gateway-service/                   ← shared Gateway submodule (private)
+├── gateway-service/                   ← shared Gateway submodule (private)
+└── discovery-service/                 ← Discovery Service submodule (private, Lab 3)
 ```
 
 ### Submodules

@@ -25,3 +25,6 @@
 [submodule "gateway-service"]
 	path = gateway-service
 	url = https://github.com/cyberArtik/gateway.git
+[submodule "discovery-service"]
+	path = discovery-service
+	url = https://github.com/cyberArtik/discovery-service.git
