@@ -43,6 +43,8 @@ access includes `huntrese`, `IslamAbukoush`, `cyberArtik`, `MaxRoenco` and `Nick
 Discovery has `main` and `development`, with `development` as default. GitHub rejected enforced
 branch protection for this private repository with HTTP 403 because the account plan does not
 support it. The repository remains private; use PR reviews by convention unless the plan is upgraded.
+The Discovery repository has `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` Actions secrets configured
+for its manual release workflow. Secret values are not stored in the source tree.
 
 ## Repositories and images
 
