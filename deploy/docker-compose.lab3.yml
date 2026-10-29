@@ -1,0 +1,136 @@
+# Isolated Lab 3 deployment for Islam's Player and Game services and shared infrastructure.
+# Published images only. Add docker-compose.lab3.build.yml for local development.
+name: pad-lab3
+
+x-discovery: &discovery
+  DISCOVERY_URL: http://service-discovery:8500
+  DISCOVERY_TOKEN: ${DISCOVERY_TOKEN:?Set DISCOVERY_TOKEN in .env (32+ characters)}
+
+x-auth: &auth
+  SERVICE_JWT_SECRET: ${SERVICE_JWT_SECRET:?Set SERVICE_JWT_SECRET}
+  GATEWAY_IDENTITY_SECRET: ${GATEWAY_IDENTITY_SECRET:?Set GATEWAY_IDENTITY_SECRET}
+
+x-game: &game
+  image: geografix/game-service:${LAB3_GAME_VERSION:-3.0.0}
+  restart: unless-stopped
+  depends_on:
+    game-db: {condition: service_healthy}
+    service-discovery: {condition: service_started}
+  environment: &game-env
+    <<: [*auth, *discovery]
+    PORT: 8002
+    DATABASE_URL: postgres://game:${GAME_DB_PASSWORD}@game-db:5432/game_db?sslmode=disable
+    PLAYER_JWKS_URL: http://gateway:8080/api/v1/auth/jwks
+    PLAYER_SERVICE_URL: http://gateway:8080/player-service
+    WORLD_SERVICE_URL: ${LAB3_WORLD_SERVICE_URL:-}
+    BASE_SERVICE_URL: ${LAB3_BASE_SERVICE_URL:-}
+    RESOURCE_SERVICE_URL: ${LAB3_RESOURCE_SERVICE_URL:-}
+    EXAM_SERVICE_URL: ${LAB3_EXAM_SERVICE_URL:-}
+    ZOMBIE_SERVICE_URL: ${LAB3_ZOMBIE_SERVICE_URL:-}
+    ACTION_TIME_SCALE: ${ACTION_TIME_SCALE:-0.01}
+    TASK_TIMEOUT_SECONDS: ${GAME_TASK_TIMEOUT_SECONDS:-15}
+    MAX_CONCURRENT_REQUESTS: ${GAME_MAX_CONCURRENT_REQUESTS:-100}
+    AUTH_DEV_TOKENS: "false"
+
+services:
+  service-discovery:
+    image: geografix/service-discovery:${LAB3_DISCOVERY_VERSION:-3.0.0}
+    restart: unless-stopped
+    ports: ["127.0.0.1:${LAB3_DISCOVERY_PORT:-18500}:8500"]
+    environment:
+      <<: *discovery
+      DATABASE_PATH: /app/data/registry.sqlite
+      PROBE_INTERVAL: ${DISCOVERY_PROBE_INTERVAL:-5}
+      CRITICAL_LOAD: ${DISCOVERY_CRITICAL_LOAD:-0.8}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_STARTTLS: ${SMTP_STARTTLS:-true}
+      SMTP_FROM: ${SMTP_FROM:-}
+      SMTP_TO: ${SMTP_TO:-}
+    volumes: [discovery_data:/app/data]
+
+  gateway:
+    image: geografix/pad-gateway:${LAB3_GATEWAY_VERSION:-3.0.0}
+    restart: unless-stopped
+    ports: ["${LAB3_GATEWAY_PORT:-18080}:8080"]
+    environment:
+      <<: [*auth, *discovery]
+      DISCOVERY_SERVICES: player-service,game-service
+      PLAYER_JWKS_URL: http://player-service:8001/api/v1/auth/jwks
+      PLAYER_SERVICE_URL: http://player-service:8001
+      GAME_SERVICE_URL: http://game-service:8002
+      GAME_WS_PUBLIC_URL: ws://localhost:${LAB3_GAME_PORT:-18002}
+      DEV_TOKENS: ${GATEWAY_DEV_TOKENS:-false}
+      UPSTREAM_TIMEOUT_SECONDS: 10
+    depends_on:
+      service-discovery: {condition: service_started}
+      player-service: {condition: service_started}
+
+  player-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: player
+      POSTGRES_PASSWORD: ${PLAYER_DB_PASSWORD:?Set PLAYER_DB_PASSWORD}
+      POSTGRES_DB: player_db
+    volumes: [player_db_data:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U player -d player_db"]
+      interval: 3s
+      timeout: 2s
+      retries: 20
+
+  game-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: game
+      POSTGRES_PASSWORD: ${GAME_DB_PASSWORD:?Set GAME_DB_PASSWORD}
+      POSTGRES_DB: game_db
+    volumes: [game_db_data:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U game -d game_db"]
+      interval: 3s
+      timeout: 2s
+      retries: 20
+
+  player-service:
+    image: geografix/player-service:${LAB3_PLAYER_VERSION:-3.0.0}
+    restart: unless-stopped
+    deploy: {replicas: 2}
+    environment:
+      <<: [*auth, *discovery]
+      PORT: 8001
+      DATABASE_URL: postgres://player:${PLAYER_DB_PASSWORD}@player-db:5432/player_db?sslmode=disable
+      PLAYER_SIGNING_KEY_FILE: /var/lib/player-service/signing-key.pem
+      TASK_TIMEOUT_SECONDS: ${PLAYER_TASK_TIMEOUT_SECONDS:-15}
+      MAX_CONCURRENT_REQUESTS: ${PLAYER_MAX_CONCURRENT_REQUESTS:-100}
+      AUTH_DEV_TOKENS: "false"
+    volumes: [player_signing_key_data:/var/lib/player-service]
+    depends_on:
+      player-db: {condition: service_healthy}
+      service-discovery: {condition: service_started}
+
+  game-service:
+    <<: *game
+    ports: ["${LAB3_GAME_PORT:-18002}:8002"]
+    environment:
+      <<: *game-env
+      INSTANCE_ID: game-1
+      INSTANCE_URL: http://game-service:8002
+      INSTANCE_WS_URL: ${LAB3_GAME_WS_URL:-ws://localhost:18002}
+
+  game-service-2:
+    <<: *game
+    ports: ["${LAB3_GAME2_PORT:-18012}:8002"]
+    environment:
+      <<: *game-env
+      INSTANCE_ID: game-2
+      INSTANCE_URL: http://game-service-2:8002
+      INSTANCE_WS_URL: ${LAB3_GAME2_WS_URL:-ws://localhost:18012}
+
+volumes:
+  discovery_data:
+  player_db_data:
+  game_db_data:
+  player_signing_key_data:
