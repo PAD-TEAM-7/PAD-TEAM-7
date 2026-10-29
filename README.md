@@ -4,12 +4,9 @@
 
 The Lab 3 deployment adds Python Service Discovery and two replicas each of Player, Game, Zombie and Resource,
 dynamic routing, lobby affinity, health/load monitoring, SMTP alerts and circuit-breaker removal.
-Start with [`docs/lab3-mentor-guide.md`](docs/lab3-mentor-guide.md) for the presentation and commands,
-[`docs/lab3-contract.md`](docs/lab3-contract.md) for the API additions, and
-[`docs/lab3-verification.md`](docs/lab3-verification.md) for validation and publication evidence.
 The image-only deployment is [`deploy/docker-compose.lab3.yml`](deploy/docker-compose.lab3.yml).
-Maxim's part has a dedicated [presentation guide](docs/lab3-maxim-mentor-guide.md) and
-live check script at `scripts/lab3-maxim-smoke.py`. Exam, World, Base and Crafting remain outside
+Run `python scripts/lab3-smoke.py` or `python scripts/lab3-maxim-smoke.py --fault-demo`
+from the CPR root to verify the running stack. Exam, World, Base and Crafting remain outside
 this implementation scope. The deployment runs alongside Lab 2.
 
 
