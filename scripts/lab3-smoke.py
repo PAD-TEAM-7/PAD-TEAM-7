@@ -162,7 +162,7 @@ def main():
     )
 
 
-def fault_demo(args, admin):
+def fault_demo(args, admin, service="player-service"):
     class FaultyReplica(BaseHTTPRequestHandler):
         def do_GET(self):
             status = self.path == "/api/v1/status"
@@ -185,7 +185,7 @@ def fault_demo(args, admin):
     thread.start()
     instance = "demo-fault-" + uuid.uuid4().hex[:8]
     registration = {
-        "service": "player-service",
+        "service": service,
         "instance_id": instance,
         "url": "http://host.docker.internal:19090",
         "task_timeout": 15,
@@ -204,11 +204,7 @@ def fault_demo(args, admin):
                 "Docker cannot reach the local fault fixture on port 19090"
             )
         failures = 0
-        paths = (
-            "/player-service/api/v1/health",
-            "/player-service/api/v1/ready",
-            "/api/v1/auth/jwks",
-        )
+        paths = (f"/{service}/api/v1/health", f"/{service}/api/v1/ready")
         for index in range(15):
             request(args.discovery, "/v1/instances", "POST", registration, admin)
             path = paths[failures % len(paths)]
@@ -230,10 +226,10 @@ def fault_demo(args, admin):
             f"Expected three actual HTTP failures, observed {failures}"
         )
         for _ in range(6):
-            _, headers = request(args.gateway, "/player-service/api/v1/health")
+            _, headers = request(args.gateway, f"/{service}/api/v1/health")
             assert headers["X-Service-Instance"] != instance
         print(
-            "PASS: three real HTTP 500s across different endpoints removed the faulty replica"
+            f"PASS: three real HTTP 500s across different endpoints removed faulty {service} replica"
         )
         print(
             "Critical-load alert generated; inspect Discovery logs and your configured SMTP inbox."

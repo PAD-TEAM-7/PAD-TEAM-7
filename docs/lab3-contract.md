@@ -1,11 +1,11 @@
 # Lab 3 communication contract
 
-Scope: Player, Game, Gateway and Service Discovery. Existing business payloads remain v1-compatible.
+Scope: Player, Game, Zombie, Resource, Gateway and Service Discovery. Existing business payloads remain v1-compatible.
 See the [mentor guide](lab3-mentor-guide.md) for runnable examples and limitations.
 
 ## Domain status and instance identity
 
-Player and Game expose public `GET /api/v1/status`, also reachable through their Gateway prefix.
+Player, Game, Zombie and Resource expose public `GET /api/v1/status`, also reachable through their Gateway prefix.
 
 ```json
 {"status":"ok","service":"player-service","instance_id":"container-id","in_flight":2,"capacity":100,"load":0.02}
@@ -42,7 +42,8 @@ clear removal. The Gateway and Game caller share failure IDs to avoid double-cou
 ## Routing and state
 
 Set `DISCOVERY_URL`, `DISCOVERY_TOKEN` and `DISCOVERY_SERVICES=player-service,game-service` on the
-Gateway. Managed services have no static fallback. Selection failure returns the existing error
+Gateway. The extended deployment adds `zombie-service,resource-service` to that managed set.
+Managed services have no static fallback. Selection failure returns the existing error
 envelope with HTTP 503 and code `NO_HEALTHY_INSTANCE`.
 
 For a Game route containing `/lobbies/{id}`, the affinity key is the lobby ID. WebSocket
@@ -53,3 +54,9 @@ distinct public ports/addresses. A failed owner is not automatically reassigned.
 Unmanaged teammate services keep the Lab 2 route contract. They can adopt this protocol later:
 implement status, register/renew/deregister, wrap outbound calls and add their names to the
 Gateway's managed set only when their deployed instances actually register.
+
+Zombie and Resource use round robin without sticky routing because domain state is shared in
+their own PostgreSQL databases. Zombie additionally holds a database advisory lock for the entire
+same-zombie mutation, including external calls. This coordinates steal/damage/kill/despawn and
+event cleanup across replicas. Resource's existing row and idempotency-key locks coordinate stock.
+Lobby-finished Zombie cleanup now returns stolen inventory before despawn, under that same lock.

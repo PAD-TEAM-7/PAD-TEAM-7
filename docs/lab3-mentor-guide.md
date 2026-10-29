@@ -1,8 +1,10 @@
 # Lab 3 — presentation and demonstration guide
 
-This implementation covers **Islam's Player and Game services**, plus the shared Python
-Gateway, new Python Service Discovery and deployment. Teammates' domain repositories were
-intentionally left unchanged. Their Lab 3 work remains their responsibility.
+This implementation covers **Islam's Player/Game and Maxim's Zombie/Resource services**, plus
+the shared Python Gateway, new Python Service Discovery and deployment. Maxim's detailed
+rubric mapping, concurrency explanation and live demonstration are in
+[lab3-maxim-mentor-guide.md](lab3-maxim-mentor-guide.md). Exam, World, Base and Crafting remain
+their owners' responsibility.
 
 ## 1. What to say first
 
@@ -87,6 +89,8 @@ The real `.env` is ignored by Git. The default local demonstration addresses are
 Default images: `geografix/player-service:3.0.0`, `geografix/game-service:3.0.0`,
 `geografix/pad-gateway:3.0.0`, `geografix/service-discovery:3.0.0`.
 `LAB3_*_VERSION` variables pin them independently.
+The extended deployment also uses `geografix/zombie-service:3.0.0` and
+`geografix/resource-service:3.0.0`; see the Maxim guide for their demonstration.
 
 For local source builds:
 
@@ -99,11 +103,11 @@ On a memory-constrained machine, build the four images individually from the CPR
 `docker build -t <image:tag> <service-directory>` before starting Compose. Game instances use
 the same image; build it only once.
 
-The isolated demo mocks World, Base, Resource, Exam and Zombie by leaving the `LAB3_*_SERVICE_URL`
-values empty. This is the existing dependency-mocking contract, not a simulation of Player,
-Game, their databases, the Gateway or Discovery. Connect actual teammates through reachable
-Gateway-prefixed addresses once their integration is ready. `localhost` inside a container
-refers to that container, not the Windows host.
+Game's optional `LAB3_*_SERVICE_URL` settings retain the existing dependency-mocking defaults.
+The extended deployment runs real Zombie and Resource services, and Zombie calls the real
+Player and Resource services through the Gateway. The dedicated Maxim smoke test exercises those
+real interactions. Connect other integrations through reachable Gateway-prefixed addresses once
+their contracts are ready. `localhost` inside a container refers to that container, not the host.
 
 ## 4. Ten-minute live demonstration
 
@@ -288,9 +292,9 @@ Static fallback could resurrect a quarantined instance or send a live lobby to a
 Domain idempotency keys remain the caller's responsibility; a transport failure may happen after
 the service committed a mutation. Circuit isolation and idempotency solve different problems.
 
-**Does this finish the whole team's grade 10?** It implements the requested scope—Player, Game
-and their shared infrastructure. Teammates must integrate their own status, registration and
-outbound callers. External email must be configured and demonstrated. The mentor assigns the grade.
+**Does this finish the whole team's grade 10?** It implements Player, Game, Zombie, Resource
+and their shared infrastructure. The remaining owners must integrate their own status,
+registration and outbound callers. External email must be configured and demonstrated. The mentor assigns the grade.
 
 ## 7. Source tour
 
