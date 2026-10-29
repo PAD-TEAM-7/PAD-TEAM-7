@@ -3248,3 +3248,39 @@ its own spelling for `metal-01` is a breaking change.
 Technical University of Moldova · Faculty of Computers, Informatics and Microelectronics
 
 </div>
+
+
+## Lab 3: eight-service scaling deployment
+
+Use the dedicated Lab 3 deployment; the original `docker-compose.yml` preserves the
+Lab 2 setup. Copy `deploy/.env.example` to a local `deploy/.env`, supply the database,
+authentication and Discovery secrets, and configure SMTP locally for developer alerts.
+
+```powershell
+docker compose -f deploy/docker-compose.lab3.yml pull
+docker compose -f deploy/docker-compose.lab3.yml up -d
+python scripts/lab3-team-smoke.py
+```
+
+The Gateway listens on `http://localhost:18080`, and Discovery on
+`http://localhost:18500` (its authenticated API is documented at `/docs`).
+All eight domain services run with two registered instances. The four TypeScript
+services use their owners' `3.0.1` releases. Separate databases store domain state;
+replicas of one service share its database. Game retains lobby/WebSocket ownership.
+
+For local builds, add `-f deploy/docker-compose.lab3.build.yml` to the Compose command
+and run `build` before `up`. `python scripts/lab3-team-smoke.py --scale-demo --fault-demo`
+additionally exercises 2/3-instance scaling, critical-load alerts and removal after
+three real failing Gateway requests. The fault demo uses temporary local fixture
+ports 19090-19093 and sends emails through the configured alert channel. Fixtures
+are deregistered and replicas return to two after each demonstration.
+
+Crafting still authenticates signed Gateway identity. The Gateway also forwards its
+player token so a preview can read that player's lobby-scoped Resource balances;
+service callers cannot impersonate players for this read. Actual crafting uses
+service authentication and atomic Resource consumption, followed by idempotent
+Player inventory delivery.
+
+The team smoke check creates fresh demo records and uses the exam database only to
+read answers for its own generated verification exam; answers are never printed or
+exposed through a new API. Presentation guides and audit notes remain local.
