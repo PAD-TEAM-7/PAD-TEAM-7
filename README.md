@@ -1,12 +1,13 @@
 # In Kahoots with the Undead
 
-## Lab 3 — Player and Game scaling
+## Lab 3 — Player, Game, Zombie and Resource scaling
 
-The Lab 3 deployment adds Python Service Discovery, two Player replicas, two Game instances,
+The Lab 3 deployment adds Python Service Discovery and two replicas each of Player, Game, Zombie and Resource,
 dynamic routing, lobby affinity, health/load monitoring, SMTP alerts and circuit-breaker removal.
 The image-only deployment is [`deploy/docker-compose.lab3.yml`](deploy/docker-compose.lab3.yml).
-Run `python scripts/lab3-smoke.py` from the CPR root to verify the running stack.
-This scoped deployment runs alongside Lab 2.
+Run `python scripts/lab3-smoke.py` or `python scripts/lab3-maxim-smoke.py --fault-demo`
+from the CPR root to verify the running stack. Exam, World, Base and Crafting remain outside
+this implementation scope. The deployment runs alongside Lab 2.
 
 
 **FAF.PAD21.1 — Autumn 2026 · Laboratories 0–2**

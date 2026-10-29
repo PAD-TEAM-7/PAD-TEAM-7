@@ -1,4 +1,4 @@
-# Isolated Lab 3 deployment for Islam's Player and Game services and shared infrastructure.
+# Lab 3: Islam's Player/Game, Maxim's Zombie/Resource, and shared infrastructure.
 # Published images only. Add docker-compose.lab3.build.yml for local development.
 name: pad-lab3
 
@@ -57,10 +57,12 @@ services:
     ports: ["${LAB3_GATEWAY_PORT:-18080}:8080"]
     environment:
       <<: [*auth, *discovery]
-      DISCOVERY_SERVICES: player-service,game-service
+      DISCOVERY_SERVICES: player-service,game-service,zombie-service,resource-service
       PLAYER_JWKS_URL: http://player-service:8001/api/v1/auth/jwks
       PLAYER_SERVICE_URL: http://player-service:8001
       GAME_SERVICE_URL: http://game-service:8002
+      ZOMBIE_SERVICE_URL: http://zombie-service:8005
+      RESOURCE_SERVICE_URL: http://resource-service:8006
       GAME_WS_PUBLIC_URL: ws://localhost:${LAB3_GAME_PORT:-18002}
       DEV_TOKENS: ${GATEWAY_DEV_TOKENS:-false}
       UPSTREAM_TIMEOUT_SECONDS: 10
@@ -111,6 +113,66 @@ services:
       player-db: {condition: service_healthy}
       service-discovery: {condition: service_started}
 
+  zombie-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: zombie
+      POSTGRES_PASSWORD: ${ZOMBIE_DB_PASSWORD:?Set ZOMBIE_DB_PASSWORD}
+      POSTGRES_DB: zombie_db
+    volumes: [zombie_db_data:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U zombie -d zombie_db"]
+      interval: 3s
+      timeout: 2s
+      retries: 20
+
+  resource-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: resource
+      POSTGRES_PASSWORD: ${RESOURCE_DB_PASSWORD:?Set RESOURCE_DB_PASSWORD}
+      POSTGRES_DB: resource_db
+    volumes: [resource_db_data:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U resource -d resource_db"]
+      interval: 3s
+      timeout: 2s
+      retries: 20
+
+  zombie-service:
+    image: geografix/zombie-service:${LAB3_ZOMBIE_VERSION:-3.0.0}
+    restart: unless-stopped
+    deploy: {replicas: 2}
+    environment:
+      <<: [*auth, *discovery]
+      PORT: 8005
+      DATABASE_URL: postgres://zombie:${ZOMBIE_DB_PASSWORD}@zombie-db:5432/zombie_db?sslmode=disable
+      PLAYER_JWKS_URL: http://gateway:8080/api/v1/auth/jwks
+      PLAYER_SERVICE_URL: http://gateway:8080/player-service
+      RESOURCE_SERVICE_URL: http://gateway:8080/resource-service
+      TASK_TIMEOUT_SECONDS: ${ZOMBIE_TASK_TIMEOUT_SECONDS:-15}
+      MAX_CONCURRENT_REQUESTS: ${ZOMBIE_MAX_CONCURRENT_REQUESTS:-100}
+      AUTH_DEV_TOKENS: "false"
+    depends_on:
+      zombie-db: {condition: service_healthy}
+      service-discovery: {condition: service_started}
+
+  resource-service:
+    image: geografix/resource-service:${LAB3_RESOURCE_VERSION:-3.0.0}
+    restart: unless-stopped
+    deploy: {replicas: 2}
+    environment:
+      <<: [*auth, *discovery]
+      PORT: 8006
+      DATABASE_URL: postgres://resource:${RESOURCE_DB_PASSWORD}@resource-db:5432/resource_db?sslmode=disable
+      PLAYER_JWKS_URL: http://gateway:8080/api/v1/auth/jwks
+      TASK_TIMEOUT_SECONDS: ${RESOURCE_TASK_TIMEOUT_SECONDS:-15}
+      MAX_CONCURRENT_REQUESTS: ${RESOURCE_MAX_CONCURRENT_REQUESTS:-100}
+      AUTH_DEV_TOKENS: "false"
+    depends_on:
+      resource-db: {condition: service_healthy}
+      service-discovery: {condition: service_started}
+
   game-service:
     <<: *game
     ports: ["${LAB3_GAME_PORT:-18002}:8002"]
@@ -134,3 +196,5 @@ volumes:
   player_db_data:
   game_db_data:
   player_signing_key_data:
+  zombie_db_data:
+  resource_db_data:

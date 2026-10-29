@@ -9,3 +9,7 @@ services:
     build: ../game-service
   game-service-2:
     build: ../game-service
+  zombie-service:
+    build: ../zombie-service
+  resource-service:
+    build: ../resource-service
