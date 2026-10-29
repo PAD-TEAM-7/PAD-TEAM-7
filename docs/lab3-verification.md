@@ -30,6 +30,7 @@ Exam, World, Base and Crafting source code is unchanged.
 | Genuine HTTP failure removal for Zombie and Resource | Passed for each service through the real Gateway |
 | Removal persists across heartbeat; explicit restoration | Passed for both new services |
 | Dynamic Zombie and Resource scaling from two to three replicas and back | Passed without Gateway restart |
+| Zombie and Resource GitHub CI | Both PostgreSQL/race/coverage and amd64/arm64 image-build jobs passed |
 | Three controlled failure reports, removal across heartbeat, health-checked restore | Passed |
 | Three real HTTP 500 responses across different endpoints through Gateway | Passed; faulty instance excluded afterward |
 | Critical-load monitor alert during live fault demo | Generated |
@@ -83,11 +84,14 @@ Versioned image references used by the deployment:
 ## Published source and review links
 
 - [CPR deployment and guide PR #28](https://github.com/PAD-TEAM-7/PAD-TEAM-7/pull/28)
+- [Maxim deployment and guide PR #30](https://github.com/PAD-TEAM-7/PAD-TEAM-7/pull/30), stacked on #28
 - [Player PR #12](https://github.com/IslamAbukoush/player-service/pull/12)
 - [Game PR #14](https://github.com/IslamAbukoush/game-service/pull/14)
 - [Gateway PR #8](https://github.com/cyberArtik/gateway/pull/8)
 - [Zombie PR #2](https://github.com/MaxRoenco/zombie-service/pull/2)
 - [Resource PR #2](https://github.com/MaxRoenco/resource-service/pull/2)
+- [Zombie successful CI run](https://github.com/MaxRoenco/zombie-service/actions/runs/40856869686)
+- [Resource successful CI run](https://github.com/MaxRoenco/resource-service/actions/runs/40856877337)
 - [Discovery CI: successful initial run](https://github.com/PAD-TEAM-7/service-discovery/actions/runs/40852382541)
 
 ## DockerHub publication
