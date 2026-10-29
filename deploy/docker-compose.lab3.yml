@@ -1,4 +1,4 @@
-# Lab 3: Islam's Player/Game, Maxim's Zombie/Resource, and shared infrastructure.
+# Lab 3: all eight domain services, shared Discovery and Gateway.
 # Published images only. Add docker-compose.lab3.build.yml for local development.
 name: pad-lab3
 
@@ -9,6 +9,24 @@ x-discovery: &discovery
 x-auth: &auth
   SERVICE_JWT_SECRET: ${SERVICE_JWT_SECRET:?Set SERVICE_JWT_SECRET}
   GATEWAY_IDENTITY_SECRET: ${GATEWAY_IDENTITY_SECRET:?Set GATEWAY_IDENTITY_SECRET}
+
+x-node: &node-env
+  <<: [*auth, *discovery]
+  AUTH_MODE: gateway
+  AUTH_DEV_TOKENS: "false"
+  MOCK_PLAYER_JWT_SECRET: ${MOCK_PLAYER_JWT_SECRET:?Set MOCK_PLAYER_JWT_SECRET}
+  PLAYER_JWKS_URL: http://gateway:8080/api/v1/auth/jwks
+  PLAYER_SERVICE_URL: http://gateway:8080/player-service
+  GAME_SERVICE_URL: http://gateway:8080/game-service
+  WORLD_SERVICE_URL: http://gateway:8080/world-service
+  EXAM_SERVICE_URL: http://gateway:8080/exam-service
+  BASE_SERVICE_URL: http://gateway:8080/base-service
+  CRAFTING_SERVICE_URL: http://gateway:8080/crafting-service
+  RESOURCE_SERVICE_URL: http://gateway:8080/resource-service
+  ZOMBIE_SERVICE_URL: http://gateway:8080/zombie-service
+  TASK_TIMEOUT_MS: 10000
+  MAX_CONCURRENT_REQUESTS: 100
+  CIRCUIT_BREAKER_MODE: remove
 
 x-game: &game
   image: geografix/game-service:${LAB3_GAME_VERSION:-3.0.0}
@@ -57,13 +75,15 @@ services:
     ports: ["${LAB3_GATEWAY_PORT:-18080}:8080"]
     environment:
       <<: [*auth, *discovery]
-      DISCOVERY_SERVICES: player-service,game-service,zombie-service,resource-service
+      DISCOVERY_SERVICES: player-service,game-service,exam-service,world-service,zombie-service,resource-service,base-service,crafting-service
       PLAYER_JWKS_URL: http://player-service:8001/api/v1/auth/jwks
       PLAYER_SERVICE_URL: http://player-service:8001
       GAME_SERVICE_URL: http://game-service:8002
       ZOMBIE_SERVICE_URL: http://zombie-service:8005
       RESOURCE_SERVICE_URL: http://resource-service:8006
       GAME_WS_PUBLIC_URL: ws://localhost:${LAB3_GAME_PORT:-18002}
+      # Crafting delegates player-authenticated balance reads; it still verifies signed identity.
+      LEGACY_AUTH_SERVICES: crafting-service
       DEV_TOKENS: ${GATEWAY_DEV_TOKENS:-false}
       UPSTREAM_TIMEOUT_SECONDS: 10
     depends_on:
@@ -191,6 +211,122 @@ services:
       INSTANCE_URL: http://game-service-2:8002
       INSTANCE_WS_URL: ${LAB3_GAME2_WS_URL:-ws://localhost:18012}
 
+  exam-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: exam
+      POSTGRES_PASSWORD: ${EXAM_DB_PASSWORD:?Set EXAM_DB_PASSWORD}
+      POSTGRES_DB: exam_db
+    volumes: [exam_db_data:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U exam -d exam_db"]
+      interval: 3s
+      timeout: 2s
+      retries: 20
+
+  exam-service:
+    image: artflow/exam-service:${LAB3_EXAM_VERSION:-3.0.1}
+    restart: unless-stopped
+    deploy: {replicas: 2}
+    environment:
+      <<: *node-env
+      PORT: 8003
+      DB_HOST: exam-db
+      DB_PORT: 5432
+      DB_USER: exam
+      DB_PASSWORD: ${EXAM_DB_PASSWORD}
+      DB_NAME: exam_db
+    depends_on:
+      exam-db: {condition: service_healthy}
+      service-discovery: {condition: service_started}
+
+  world-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: world
+      POSTGRES_PASSWORD: ${WORLD_DB_PASSWORD:?Set WORLD_DB_PASSWORD}
+      POSTGRES_DB: world_db
+    volumes: [world_db_data:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U world -d world_db"]
+      interval: 3s
+      timeout: 2s
+      retries: 20
+
+  world-service:
+    image: artflow/world-service:${LAB3_WORLD_VERSION:-3.0.1}
+    restart: unless-stopped
+    deploy: {replicas: 2}
+    environment:
+      <<: *node-env
+      PORT: 8004
+      DB_HOST: world-db
+      DB_PORT: 5432
+      DB_USER: world
+      DB_PASSWORD: ${WORLD_DB_PASSWORD}
+      DB_NAME: world_db
+    depends_on:
+      world-db: {condition: service_healthy}
+      service-discovery: {condition: service_started}
+
+  base-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: base
+      POSTGRES_PASSWORD: ${BASE_DB_PASSWORD:?Set BASE_DB_PASSWORD}
+      POSTGRES_DB: base_db
+    volumes: [base_db_data:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U base -d base_db"]
+      interval: 3s
+      timeout: 2s
+      retries: 20
+
+  base-service:
+    image: nnick34567890/base-service:${LAB3_BASE_VERSION:-3.0.1}
+    restart: unless-stopped
+    deploy: {replicas: 2}
+    environment:
+      <<: *node-env
+      PORT: 8007
+      DB_HOST: base-db
+      DB_PORT: 5432
+      DB_USER: base
+      DB_PASSWORD: ${BASE_DB_PASSWORD}
+      DB_NAME: base_db
+    depends_on:
+      base-db: {condition: service_healthy}
+      service-discovery: {condition: service_started}
+
+  crafting-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: crafting
+      POSTGRES_PASSWORD: ${CRAFTING_DB_PASSWORD:?Set CRAFTING_DB_PASSWORD}
+      POSTGRES_DB: crafting_db
+    volumes: [crafting_db_data:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U crafting -d crafting_db"]
+      interval: 3s
+      timeout: 2s
+      retries: 20
+
+  crafting-service:
+    image: nnick34567890/crafting-service:${LAB3_CRAFTING_VERSION:-3.0.1}
+    restart: unless-stopped
+    deploy: {replicas: 2}
+    environment:
+      <<: *node-env
+      PORT: 8008
+      DB_HOST: crafting-db
+      DB_PORT: 5432
+      DB_USER: crafting
+      DB_PASSWORD: ${CRAFTING_DB_PASSWORD}
+      DB_NAME: crafting_db
+    depends_on:
+      crafting-db: {condition: service_healthy}
+      service-discovery: {condition: service_started}
+
 volumes:
   discovery_data:
   player_db_data:
@@ -198,3 +334,7 @@ volumes:
   player_signing_key_data:
   zombie_db_data:
   resource_db_data:
+  exam_db_data:
+  world_db_data:
+  base_db_data:
+  crafting_db_data:

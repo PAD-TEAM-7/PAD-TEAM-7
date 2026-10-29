@@ -1,0 +1,26 @@
+name: Lab 3 deployment
+
+on:
+  push:
+    branches: [main, development, 'feat/shared/**']
+  pull_request:
+    branches: [main, development]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate deployment with placeholder credentials
+        run: |
+          cp deploy/.env.example deploy/.env
+          docker compose -f deploy/docker-compose.lab3.yml config --quiet
+          docker compose -f deploy/docker-compose.lab3.yml -f deploy/docker-compose.lab3.build.yml config --quiet
+      - name: Check verification script syntax
+        run: python -m py_compile scripts/lab3-smoke.py scripts/lab3-maxim-smoke.py scripts/lab3-team-smoke.py

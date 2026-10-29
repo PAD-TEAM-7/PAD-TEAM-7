@@ -13,3 +13,11 @@ services:
     build: ../zombie-service
   resource-service:
     build: ../resource-service
+  exam-service:
+    build: ../exam-service
+  world-service:
+    build: ../world-service
+  base-service:
+    build: ../base-service
+  crafting-service:
+    build: ../crafting-service
