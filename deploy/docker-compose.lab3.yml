@@ -57,7 +57,7 @@ services:
     ports: ["${LAB3_GATEWAY_PORT:-18080}:8080"]
     environment:
       <<: [*auth, *discovery]
-      DISCOVERY_SERVICES: player-service,game-service,zombie-service,resource-service
+      DISCOVERY_SERVICES: player-service,game-service,zombie-service,resource-service,base-service,crafting-service,exam-service,world-service
       PLAYER_JWKS_URL: http://player-service:8001/api/v1/auth/jwks
       PLAYER_SERVICE_URL: http://player-service:8001
       GAME_SERVICE_URL: http://game-service:8002
@@ -191,6 +191,165 @@ services:
       INSTANCE_URL: http://game-service-2:8002
       INSTANCE_WS_URL: ${LAB3_GAME2_WS_URL:-ws://localhost:18012}
 
+  # ------------------------------------------------- Base and Crafting (Gancear Nichita)
+  # Both register in Service Discovery, renew their lease every 5 s, report /api/v1/status with a
+  # numeric load, and report every failed call so Discovery removes the failing instance.
+  base-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: base
+      POSTGRES_PASSWORD: ${BASE_DB_PASSWORD:?Set BASE_DB_PASSWORD}
+      POSTGRES_DB: base_db
+    volumes: [base_db_data:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U base -d base_db"]
+      interval: 3s
+      timeout: 2s
+      retries: 20
+
+  crafting-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: crafting
+      POSTGRES_PASSWORD: ${CRAFTING_DB_PASSWORD:?Set CRAFTING_DB_PASSWORD}
+      POSTGRES_DB: crafting_db
+    volumes: [crafting_db_data:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U crafting -d crafting_db"]
+      interval: 3s
+      timeout: 2s
+      retries: 20
+
+  base-service:
+    image: nnick34567890/base-service:${LAB3_BASE_VERSION:-3.0.0}
+    restart: unless-stopped
+    deploy: {replicas: 2}
+    environment:
+      <<: [*auth, *discovery]
+      AUTH_MODE: gateway
+      PORT: 8007
+      DB_HOST: base-db
+      DB_USER: base
+      DB_PASSWORD: ${BASE_DB_PASSWORD}
+      DB_NAME: base_db
+      # Required by the service's config; unused in gateway mode, where tokens never reach it.
+      MOCK_PLAYER_JWT_SECRET: ${MOCK_PLAYER_JWT_SECRET:-unused-in-gateway-mode}
+      AUTH_DEV_TOKENS: "false"
+      TASK_TIMEOUT_MS: 10000
+      RESOURCE_SERVICE_URL: http://gateway:8080/resource-service
+      PLAYER_SERVICE_URL: http://gateway:8080/player-service
+      WORLD_SERVICE_URL: ${LAB3_BASE_WORLD_URL:-http://gateway:8080/world-service}
+      EXAM_SERVICE_URL: ${LAB3_BASE_EXAM_URL:-http://gateway:8080/exam-service}
+    depends_on:
+      base-db: {condition: service_healthy}
+      service-discovery: {condition: service_started}
+
+  crafting-service:
+    image: nnick34567890/crafting-service:${LAB3_CRAFTING_VERSION:-3.0.0}
+    restart: unless-stopped
+    deploy: {replicas: 2}
+    environment:
+      <<: [*auth, *discovery]
+      AUTH_MODE: gateway
+      PORT: 8008
+      DB_HOST: crafting-db
+      DB_USER: crafting
+      DB_PASSWORD: ${CRAFTING_DB_PASSWORD}
+      DB_NAME: crafting_db
+      MOCK_PLAYER_JWT_SECRET: ${MOCK_PLAYER_JWT_SECRET:-unused-in-gateway-mode}
+      AUTH_DEV_TOKENS: "false"
+      TASK_TIMEOUT_MS: 10000
+      RESOURCE_SERVICE_URL: http://gateway:8080/resource-service
+      PLAYER_SERVICE_URL: http://gateway:8080/player-service
+      BASE_SERVICE_URL: http://gateway:8080/base-service
+      WORLD_SERVICE_URL: ${LAB3_CRAFTING_WORLD_URL:-http://gateway:8080/world-service}
+      EXAM_SERVICE_URL: ${LAB3_CRAFTING_EXAM_URL:-http://gateway:8080/exam-service}
+    depends_on:
+      crafting-db: {condition: service_healthy}
+      service-discovery: {condition: service_started}
+
+  # ------------------------------------------------------- Exam and World (Ilico Artemie)
+  # Both register in Service Discovery, renew their lease every 5 s, report /api/v1/status with a
+  # numeric load, and report every failed call so Discovery removes the failing instance.
+  exam-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: exam
+      POSTGRES_PASSWORD: ${EXAM_DB_PASSWORD:?Set EXAM_DB_PASSWORD}
+      POSTGRES_DB: exam_db
+    volumes: [exam_db_data:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U exam -d exam_db"]
+      interval: 3s
+      timeout: 2s
+      retries: 20
+
+  world-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: world
+      POSTGRES_PASSWORD: ${WORLD_DB_PASSWORD:?Set WORLD_DB_PASSWORD}
+      POSTGRES_DB: world_db
+    volumes: [world_db_data:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U world -d world_db"]
+      interval: 3s
+      timeout: 2s
+      retries: 20
+
+  exam-service:
+    image: artflow/exam-service:${LAB3_EXAM_VERSION:-3.0.0}
+    restart: unless-stopped
+    deploy: {replicas: 2}
+    environment:
+      <<: [*auth, *discovery]
+      AUTH_MODE: gateway
+      PORT: 8003
+      DB_HOST: exam-db
+      DB_PORT: 5432
+      DB_USER: exam
+      DB_PASSWORD: ${EXAM_DB_PASSWORD}
+      DB_NAME: exam_db
+      TASK_TIMEOUT_MS: 10000
+      PLAYER_SERVICE_URL: http://gateway:8080/player-service
+      WORLD_SERVICE_URL: http://gateway:8080/world-service
+      CRAFTING_SERVICE_URL: http://gateway:8080/crafting-service
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8003/api/v1/ready || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 40s
+    depends_on:
+      exam-db: {condition: service_healthy}
+      service-discovery: {condition: service_started}
+
+  world-service:
+    image: artflow/world-service:${LAB3_WORLD_VERSION:-3.0.0}
+    restart: unless-stopped
+    deploy: {replicas: 2}
+    environment:
+      <<: [*auth, *discovery]
+      AUTH_MODE: gateway
+      PORT: 8004
+      DB_HOST: world-db
+      DB_PORT: 5432
+      DB_USER: world
+      DB_PASSWORD: ${WORLD_DB_PASSWORD}
+      DB_NAME: world_db
+      TASK_TIMEOUT_MS: 10000
+      RESOURCE_SERVICE_URL: http://gateway:8080/resource-service
+      CRAFTING_SERVICE_URL: http://gateway:8080/crafting-service
+      GAME_SERVICE_URL: http://gateway:8080/game-service
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8004/api/v1/ready || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 40s
+    depends_on:
+      world-db: {condition: service_healthy}
+      service-discovery: {condition: service_started}
 volumes:
   discovery_data:
   player_db_data:
@@ -198,3 +357,7 @@ volumes:
   player_signing_key_data:
   zombie_db_data:
   resource_db_data:
+  base_db_data:
+  crafting_db_data:
+  exam_db_data:
+  world_db_data:
