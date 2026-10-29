@@ -1,0 +1,15 @@
+services:
+  service-discovery:
+    build: ../service-discovery
+  gateway:
+    build: ../gateway-service
+  player-service:
+    build: ../player-service
+  game-service:
+    build: ../game-service
+  game-service-2:
+    build: ../game-service
+  zombie-service:
+    build: ../zombie-service
+  resource-service:
+    build: ../resource-service

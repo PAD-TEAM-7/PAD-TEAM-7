@@ -6,3 +6,8 @@ node_modules/
 .DS_Store
 .idea/
 .vscode/
+__pycache__/
+*.py[cod]
+
+# Lab 3 presentation and supporting notes stay local.
+/docs/lab3-*.md
