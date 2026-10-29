@@ -4,11 +4,9 @@
 
 The Lab 3 deployment adds Python Service Discovery, two Player replicas, two Game instances,
 dynamic routing, lobby affinity, health/load monitoring, SMTP alerts and circuit-breaker removal.
-Start with [`docs/lab3-mentor-guide.md`](docs/lab3-mentor-guide.md) for the presentation and commands,
-[`docs/lab3-contract.md`](docs/lab3-contract.md) for the API additions, and
-[`docs/lab3-verification.md`](docs/lab3-verification.md) for validation and publication evidence.
 The image-only deployment is [`deploy/docker-compose.lab3.yml`](deploy/docker-compose.lab3.yml).
-This scoped deployment leaves teammates' domain services unchanged and runs alongside Lab 2.
+Run `python scripts/lab3-smoke.py` from the CPR root to verify the running stack.
+This scoped deployment runs alongside Lab 2.
 
 
 **FAF.PAD21.1 — Autumn 2026 · Laboratories 0–2**
