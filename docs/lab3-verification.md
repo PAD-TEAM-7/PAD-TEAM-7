@@ -19,6 +19,8 @@ Teammates' domain source code is unchanged.
 | Register/login across different replicas | Passed |
 | Shared JWT signing key and one-use refresh rotation | Passed |
 | Persistent Game lobby routing and matching negotiated WebSocket origin | Passed |
+| Direct Game WebSocket ping/pong and live PlayerJoined event | Passed against the selected lobby owner |
+| Dynamic Player scaling from two to three replicas and back | Passed without Gateway restart |
 | Three controlled failure reports, removal across heartbeat, health-checked restore | Passed |
 | Three real HTTP 500 responses across different endpoints through Gateway | Passed; faulty instance excluded afterward |
 | Critical-load monitor alert during live fault demo | Generated |
@@ -60,6 +62,7 @@ Versioned image references used by the deployment:
 
 ## Published source and review links
 
+- [CPR deployment and guide PR #28](https://github.com/PAD-TEAM-7/PAD-TEAM-7/pull/28)
 - [Player PR #12](https://github.com/IslamAbukoush/player-service/pull/12)
 - [Game PR #14](https://github.com/IslamAbukoush/game-service/pull/14)
 - [Gateway PR #8](https://github.com/cyberArtik/gateway/pull/8)
@@ -79,3 +82,5 @@ The deployment's four `3.0.0` images were built from the committed Lab 3 source 
 These tags are immutable releases. Future runtime changes need a new version before publication.
 Private service source remains accessible only to authorized collaborators; the runnable images
 are public as required by the laboratory.
+DockerHub's anonymous repository API confirmed `is_private=false` for all four repositories,
+and remote manifest inspection matched each digest above.
