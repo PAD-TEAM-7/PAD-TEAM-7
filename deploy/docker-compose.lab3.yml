@@ -92,6 +92,7 @@ services:
 
   player-db:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_USER: player
       POSTGRES_PASSWORD: ${PLAYER_DB_PASSWORD:?Set PLAYER_DB_PASSWORD}
@@ -105,6 +106,7 @@ services:
 
   game-db:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_USER: game
       POSTGRES_PASSWORD: ${GAME_DB_PASSWORD:?Set GAME_DB_PASSWORD}
@@ -135,6 +137,7 @@ services:
 
   zombie-db:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_USER: zombie
       POSTGRES_PASSWORD: ${ZOMBIE_DB_PASSWORD:?Set ZOMBIE_DB_PASSWORD}
@@ -148,6 +151,7 @@ services:
 
   resource-db:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_USER: resource
       POSTGRES_PASSWORD: ${RESOURCE_DB_PASSWORD:?Set RESOURCE_DB_PASSWORD}
@@ -213,6 +217,7 @@ services:
 
   exam-db:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_USER: exam
       POSTGRES_PASSWORD: ${EXAM_DB_PASSWORD:?Set EXAM_DB_PASSWORD}
@@ -242,6 +247,7 @@ services:
 
   world-db:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_USER: world
       POSTGRES_PASSWORD: ${WORLD_DB_PASSWORD:?Set WORLD_DB_PASSWORD}
@@ -271,6 +277,7 @@ services:
 
   base-db:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_USER: base
       POSTGRES_PASSWORD: ${BASE_DB_PASSWORD:?Set BASE_DB_PASSWORD}
@@ -300,6 +307,7 @@ services:
 
   crafting-db:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_USER: crafting
       POSTGRES_PASSWORD: ${CRAFTING_DB_PASSWORD:?Set CRAFTING_DB_PASSWORD}
