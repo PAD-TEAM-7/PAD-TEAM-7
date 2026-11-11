@@ -231,7 +231,7 @@ services:
       retries: 20
 
   exam-service:
-    image: artflow/exam-service:${LAB3_EXAM_VERSION:-3.0.1}
+    image: artflow/exam-service:${LAB3_EXAM_VERSION:-3.0.2}
     restart: unless-stopped
     deploy: {replicas: 2}
     environment:

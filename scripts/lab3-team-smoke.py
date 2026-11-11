@@ -259,13 +259,29 @@ def game_demo(api, player_id, player_auth, service_auth):
     ], cwd=ROOT, text=True))
     for answer in answers:
         request(api, f"/exam-service/api/v1/exams/{exam_id}/answers", "POST", answer, player_auth())
-    result, _ = request(api, f"/exam-service/api/v1/exams/{exam_id}/submit", "POST", {}, player_auth(str(uuid.uuid4())))
-    assert result["grade"] == 10
+    submit_key = str(uuid.uuid4())
+    result, _ = request(api, f"/exam-service/api/v1/exams/{exam_id}/submit", "POST", {}, player_auth(submit_key))
+    replay_result, _ = request(api, f"/exam-service/api/v1/exams/{exam_id}/submit", "POST", {}, player_auth(submit_key))
+    assert result == replay_result and result["grade"] == 10
+
+    def rewarded():
+        inventory, _ = request(api, f"/player-service/api/v1/players/{player_id}/inventory", headers=player_auth())
+        counts = {item["item_id"]: item["count"] for item in inventory["items"]}
+        return counts.get("coffee-01") == 2 and counts.get("cheatsheet-01") == 1
+
+    eventually(rewarded)
+    print("PASS: Exam first-pass/perfect-score rewards reach Player inventory exactly once on submit replay", flush=True)
 
     def unlocked():
         wings, _ = request(api, f"/world-service/api/v1/worlds/{lobby_id}/wings", headers=player_auth())
         return sum(bool(w["unlocked"]) for w in wings["items"]) >= 2
 
+    # Some courses intentionally have no World wing. Exercise a real supported unlock
+    # command as a controlled fixture in that case; never claim every exam opens a wing.
+    wings, _ = request(api, f"/world-service/api/v1/worlds/{lobby_id}/wings", headers=player_auth())
+    if not any(w.get("unlock_course_id") == exam.get("course_id") for w in world["locked_wings"]):
+        request(api, f"/world-service/api/v1/worlds/{lobby_id}/unlock", "POST",
+                {"course_id": "math-101", "player_id": player_id}, service_auth("world-service", str(uuid.uuid4())))
     eventually(unlocked)
 
     def callback_received():
@@ -277,7 +293,7 @@ def game_demo(api, player_id, player_auth, service_auth):
         return int(count) == 1
 
     eventually(callback_received)
-    print("PASS: Game professor exam replay, real passing submission, World wing unlock and authenticated Game callback", flush=True)
+    print("PASS: Game professor exam replay/pass, supported World unlock and authenticated Game callback", flush=True)
 
 
 def faults(args, admin, auth, active):
