@@ -73,7 +73,7 @@ are retained for reproducibility.
 
 Lab 4 runs with `deploy/docker-compose.lab4.yml`; use its build override while
 implementing unreleased source. The published-only configuration becomes usable
-when all referenced `4.0.0` images have been released. Lab 3 retains its separate
+when all versioned images referenced by Compose have been released. Lab 3 retains its separate
 configuration, image tags and persistent volumes.
 
 ---
@@ -141,3 +141,16 @@ flowchart LR
 
 See the [full communication contract](../README.md#communication-contract) for payloads,
 responses, errors, and data models.
+
+
+## Repository responsibility
+
+Player/Game, Zombie/Resource, Base/Crafting and Exam/World are the eight assigned
+services. Each private repository is accessible only to its owner and `huntrese`;
+its owner can merge passing PRs without teammate approvals.
+
+Gateway, Discovery and Broker are shared infrastructure. All four teammates keep
+access, contribute attributable regression coverage, and retain their authored
+commits through feature/release merge commits. Shared changes and CPR require two
+current-head approvals. Docker publishing stays in the existing canonical
+namespaces; a new version tag does not create a duplicate service repository.

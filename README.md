@@ -1,6 +1,6 @@
 # In Kahoots with the Undead
 
-## Lab 4: durable gRPC message broker (release review pending)
+## Lab 4: durable gRPC message broker
 
 Lab 4 adds a Python broker with subscriber/topic queues, native gRPC workers in all
 eight domain services, encrypted durable delivery, dead letters, load-aware
@@ -17,7 +17,7 @@ Local acceptance covers the complete eight-service gameplay flow, delegated Craf
 balances, actual concurrent-load routing, three-failure exclusion/recovery, dead
 letters, authenticated log export and Prometheus/Grafana. A real registration also
 survived Broker restart while Exam was unavailable, then committed exactly one
-consumer event on recovery. Owner feature PRs remain subject to review and release.
+consumer event on recovery. Published release versions are pinned in the Lab 4 Compose file.
 
 ```powershell
 python -m pip install -r scripts/requirements-lab4.txt
@@ -28,7 +28,8 @@ python scripts/lab4-availability-smoke.py
 python scripts/lab4-durability-smoke.py
 ```
 
-The build override is required until the reviewed `4.0.0` images are published.
+The image-only deployment is `docker compose -f deploy/docker-compose.lab4.yml up -d`.
+Use the build override above when working on unreleased source.
 The independent Lab 4 stack uses Gateway `http://localhost:28080`, Broker operations
 `http://localhost:28601`, Discovery `http://localhost:28500`, Grafana
 `http://localhost:23000` and Prometheus `http://localhost:29090`. Grafana uses the
@@ -81,7 +82,7 @@ services themselves live in private repositories linked here as submodules.
 | 6 | Resource Service | Roenco Maxim | Go | `8006` | `resource_db` |
 | 7 | Base Service | Gancear Nichita | TypeScript | `8007` | `base_db` |
 | 8 | Crafting Service | Gancear Nichita | TypeScript | `8008` | `crafting_db` |
-| 9 | [Gateway Service](./gateway-service) | Ilico Artemie | Python | `8080` | None |
+| 9 | [Gateway Service](./gateway-service) | Shared team | Python | `8080` | None |
 
 Supporting infrastructure: **Service Discovery** on `8500`, **Message Broker**
 gRPC `8600` / operations `8601`, Prometheus and Grafana. The image below is the
@@ -3064,12 +3065,25 @@ Headers: `Authorization: Bearer <jwt>`
 
 | Branch | Purpose | Protected |
 | --- | --- | --- |
-| `main` | Production-ready, always deployable. Only release PRs from `development` land here. | Yes |
-| `development` | Integration branch and the repository default. All feature work targets this. | Yes |
+| `main` | Production-ready, always deployable. Only release PRs from `development` land here. | CI/access policy below; enforcement where supported |
+| `development` | Integration branch and the repository default. All feature work targets this. | CI/access policy below; enforcement where supported |
 
 ### Protection rules
 
-Applied identically to `main` and `development`:
+Repository access and approval policy follows responsibility:
+
+| Repository category | Access | Required peer approvals |
+| --- | --- | --- |
+| Eight assigned domain services | The individual owner and mentor `huntrese` only | None; owner-managed PRs and CI remain |
+| Shared Gateway, Discovery, Broker and CPR | All four teammates and the mentor | Two current-head approvals |
+
+The domain policy applies to Player/Game (Islam), Zombie/Resource (Maxim),
+Base/Crafting (Nichita) and Exam/World (Artiom). No teammate access is needed to
+release another person's assigned domain service. CI must pass before its owner
+merges the release. Shared-service merges preserve each contributor's actual commits.
+
+For shared repositories, apply the following to `main` and `development` where
+the GitHub plan supports private branch protection:
 
 - Require a pull request before merging
 - **Require 2 approving reviews** — with four members and eight interdependent services, one approval
@@ -3106,8 +3120,8 @@ docs/contracts/70-add-world-unlock-endpoint
 | `docs/` | Documentation, including this contract |
 | `chore/` | Dependencies, CI, tooling |
 
-The `<service>` segment is one of the eight service names, or `contracts` for changes to this
-document, or `shared` for anything genuinely cross-cutting. **The issue number is mandatory** — it is
+The `<service>` segment names a domain service or shared infrastructure component.
+Use `contracts` for common API changes, or `shared` / `platform` for cross-cutting integration. **The issue number is mandatory** — it is
 how the GitHub Project board tracks work automatically, and it means a branch name alone tells you
 what the change was for.
 
@@ -3124,8 +3138,13 @@ docs(contracts): document the resource consume endpoint
 
 ### Merging
 
-**Squash and merge into `development`.** One feature becomes one commit, keeping history linear and
-reverts trivial.
+**Assigned domain repositories:** squash and merge feature PRs into `development`
+without required teammate approvals, after CI succeeds.
+
+**Shared infrastructure and CPR:** use merge commits for feature integration when
+needed to retain the individual authors' contributions in the default/main history.
+All four teammates must make substantive, attributable changes; adding names alone
+or empty commits is not a contribution.
 
 **Merge commit for release PRs into `main`,** so a release is a single identifiable point in history
 that can be tagged and rolled back as a unit.
@@ -3141,7 +3160,8 @@ carry: what changed and why, the linked issue, how to test, and the **contract-i
 document:
 
 1. The change to this README ships **in the same PR** as the code.
-2. Every owner whose service appears under that service's *Consumed by* line is added as a reviewer.
+2. Request review from affected consuming owners on the shared CPR contract PR.
+   Assigned private service PRs remain owner/mentor-only and do not require peer access.
 3. The PR is labelled `contract-change`.
 4. Breaking changes ship as `/api/v2/` alongside `v1`; `v1` is removed only once every consumer has
    migrated.
