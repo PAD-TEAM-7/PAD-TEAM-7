@@ -1,0 +1,435 @@
+# Lab 4: native gRPC data plane through the durable Python message broker.
+# Published images only. Add docker-compose.lab4.build.yml for local development.
+name: pad-lab4
+
+x-discovery: &discovery
+  DISCOVERY_URL: http://service-discovery:8500
+  DISCOVERY_TOKEN: ${DISCOVERY_TOKEN:?Set DISCOVERY_TOKEN in .env (32+ characters)}
+
+x-auth: &auth
+  SERVICE_JWT_SECRET: ${SERVICE_JWT_SECRET:?Set SERVICE_JWT_SECRET}
+  GATEWAY_IDENTITY_SECRET: ${GATEWAY_IDENTITY_SECRET:?Set GATEWAY_IDENTITY_SECRET}
+  BROKER_GRPC_TARGET: message-broker:8600
+  BROKER_WORKER_TOKEN: ${BROKER_WORKER_TOKEN:?Set BROKER_WORKER_TOKEN}
+  SYSTEM_LOG_DIR: /logs
+
+x-node: &node-env
+  <<: [*auth, *discovery]
+  AUTH_MODE: gateway
+  AUTH_DEV_TOKENS: "false"
+  MOCK_PLAYER_JWT_SECRET: ${MOCK_PLAYER_JWT_SECRET:?Set MOCK_PLAYER_JWT_SECRET}
+  PLAYER_JWKS_URL: http://player-service:8001/api/v1/auth/jwks
+  PLAYER_SERVICE_URL: http://message-broker:8600/player-service
+  GAME_SERVICE_URL: http://message-broker:8600/game-service
+  WORLD_SERVICE_URL: http://message-broker:8600/world-service
+  EXAM_SERVICE_URL: http://message-broker:8600/exam-service
+  BASE_SERVICE_URL: http://message-broker:8600/base-service
+  CRAFTING_SERVICE_URL: http://message-broker:8600/crafting-service
+  RESOURCE_SERVICE_URL: http://message-broker:8600/resource-service
+  ZOMBIE_SERVICE_URL: http://message-broker:8600/zombie-service
+  TASK_TIMEOUT_MS: 10000
+  MAX_CONCURRENT_REQUESTS: 100
+  CIRCUIT_BREAKER_MODE: remove
+
+x-game: &game
+  image: geografix/game-service:${LAB4_GAME_VERSION:-4.0.0}
+  restart: unless-stopped
+  depends_on:
+    game-db: {condition: service_healthy}
+    service-discovery: {condition: service_started}
+  environment: &game-env
+    <<: [*auth, *discovery]
+    PORT: 8002
+    GAME_SERVICE_URL: http://message-broker:8600/game-service
+    DATABASE_URL: postgres://game:${GAME_DB_PASSWORD}@game-db:5432/game_db?sslmode=disable
+    PLAYER_JWKS_URL: http://player-service:8001/api/v1/auth/jwks
+    PLAYER_SERVICE_URL: http://message-broker:8600/player-service
+    WORLD_SERVICE_URL: ${LAB4_WORLD_SERVICE_URL:-http://message-broker:8600/world-service}
+    BASE_SERVICE_URL: ${LAB4_BASE_SERVICE_URL:-http://message-broker:8600/base-service}
+    RESOURCE_SERVICE_URL: ${LAB4_RESOURCE_SERVICE_URL:-http://message-broker:8600/resource-service}
+    EXAM_SERVICE_URL: ${LAB4_EXAM_SERVICE_URL:-http://message-broker:8600/exam-service}
+    ZOMBIE_SERVICE_URL: ${LAB4_ZOMBIE_SERVICE_URL:-http://message-broker:8600/zombie-service}
+    ACTION_TIME_SCALE: ${ACTION_TIME_SCALE:-0.01}
+    TASK_TIMEOUT_SECONDS: ${GAME_TASK_TIMEOUT_SECONDS:-15}
+    MAX_CONCURRENT_REQUESTS: ${GAME_MAX_CONCURRENT_REQUESTS:-100}
+    AUTH_DEV_TOKENS: "false"
+
+services:
+  log-volume-init:
+    image: alpine:3.22
+    command: [sh, -c, "chmod 1777 /logs"]
+    volumes: [system_logs:/logs]
+    restart: "no"
+
+  message-broker:
+    image: unstoppabledestroyer/message-broker:${LAB4_BROKER_VERSION:-4.0.0}
+    restart: unless-stopped
+    environment:
+      <<: [*auth, *discovery]
+      BROKER_DATABASE_PATH: /app/data/broker.sqlite
+      BROKER_ADMIN_TOKEN: ${BROKER_ADMIN_TOKEN:?Set BROKER_ADMIN_TOKEN}
+      BROKER_DATA_KEY: ${BROKER_DATA_KEY:?Set BROKER_DATA_KEY (base64 of 32 random bytes)}
+      PLAYER_JWKS_URL: http://player-service:8001/api/v1/auth/jwks
+    ports: ["127.0.0.1:${LAB4_BROKER_GRPC_PORT:-28600}:8600", "127.0.0.1:${LAB4_BROKER_HTTP_PORT:-28601}:8601"]
+    volumes: [broker_data:/app/data, system_logs:/logs]
+    depends_on:
+      log-volume-init: {condition: service_completed_successfully}
+      service-discovery: {condition: service_started}
+
+  prometheus:
+    image: prom/prometheus:v3.3.1
+    restart: unless-stopped
+    command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.retention.time=7d"]
+    ports: ["127.0.0.1:${LAB4_PROMETHEUS_PORT:-29090}:9090"]
+    volumes: ["./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro", prometheus_data:/prometheus]
+
+  grafana:
+    image: grafana/grafana:12.0.2
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?Set GRAFANA_ADMIN_PASSWORD}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    ports: ["127.0.0.1:${LAB4_GRAFANA_PORT:-23000}:3000"]
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+  service-discovery:
+    image: geografix/service-discovery:${LAB4_DISCOVERY_VERSION:-4.0.0}
+    restart: unless-stopped
+    ports: ["127.0.0.1:${LAB4_DISCOVERY_PORT:-28500}:8500"]
+    environment:
+      SYSTEM_LOG_DIR: /logs
+      <<: *discovery
+      DATABASE_PATH: /app/data/registry.sqlite
+      PROBE_INTERVAL: ${DISCOVERY_PROBE_INTERVAL:-5}
+      CRITICAL_LOAD: ${DISCOVERY_CRITICAL_LOAD:-0.8}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_STARTTLS: ${SMTP_STARTTLS:-true}
+      SMTP_FROM: ${SMTP_FROM:-}
+      SMTP_TO: ${SMTP_TO:-}
+    volumes: [discovery_data:/app/data, system_logs:/logs]
+    depends_on:
+      log-volume-init: {condition: service_completed_successfully}
+
+  gateway:
+    image: artflow/gateway:${LAB4_GATEWAY_VERSION:-4.0.0}
+    restart: unless-stopped
+    ports: ["${LAB4_GATEWAY_PORT:-28080}:8080"]
+    environment:
+      <<: [*auth, *discovery]
+      DISCOVERY_SERVICES: player-service,game-service,exam-service,world-service,zombie-service,resource-service,base-service,crafting-service
+      PLAYER_JWKS_URL: http://player-service:8001/api/v1/auth/jwks
+      PLAYER_SERVICE_URL: http://player-service:8001
+      GAME_SERVICE_URL: http://game-service:8002
+      ZOMBIE_SERVICE_URL: http://zombie-service:8005
+      RESOURCE_SERVICE_URL: http://resource-service:8006
+      GAME_WS_PUBLIC_URL: ws://localhost:${LAB4_GAME_PORT:-28002}
+      # Crafting delegates player-authenticated balance reads; it still verifies signed identity.
+      LEGACY_AUTH_SERVICES: crafting-service
+      DEV_TOKENS: ${GATEWAY_DEV_TOKENS:-false}
+      UPSTREAM_TIMEOUT_SECONDS: 10
+    depends_on:
+      message-broker: {condition: service_healthy}
+      log-volume-init: {condition: service_completed_successfully}
+      service-discovery: {condition: service_started}
+      player-service: {condition: service_started}
+    volumes: [system_logs:/logs]
+
+  player-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: player
+      POSTGRES_PASSWORD: ${PLAYER_DB_PASSWORD:?Set PLAYER_DB_PASSWORD}
+      POSTGRES_DB: player_db
+    volumes: [player_db_data:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U player -d player_db"]
+      interval: 3s
+      timeout: 2s
+      retries: 20
+
+  game-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: game
+      POSTGRES_PASSWORD: ${GAME_DB_PASSWORD:?Set GAME_DB_PASSWORD}
+      POSTGRES_DB: game_db
+    volumes: [game_db_data:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U game -d game_db"]
+      interval: 3s
+      timeout: 2s
+      retries: 20
+
+  player-service:
+    image: geografix/player-service:${LAB4_PLAYER_VERSION:-4.0.0}
+    restart: unless-stopped
+    deploy: {replicas: 2}
+    environment:
+      BROKER_EVENT_TOPICS: events.AchievementUnlocked,events.ExamPassed,events.ItemCrafted,events.ZombieKilled
+      <<: [*auth, *discovery]
+      PORT: 8001
+      DATABASE_URL: postgres://player:${PLAYER_DB_PASSWORD}@player-db:5432/player_db?sslmode=disable
+      PLAYER_SIGNING_KEY_FILE: /var/lib/player-service/signing-key.pem
+      TASK_TIMEOUT_SECONDS: ${PLAYER_TASK_TIMEOUT_SECONDS:-15}
+      MAX_CONCURRENT_REQUESTS: ${PLAYER_MAX_CONCURRENT_REQUESTS:-100}
+      AUTH_DEV_TOKENS: "false"
+    volumes: [player_signing_key_data:/var/lib/player-service, system_logs:/logs]
+    depends_on:
+      log-volume-init: {condition: service_completed_successfully}
+      player-db: {condition: service_healthy}
+      service-discovery: {condition: service_started}
+
+  zombie-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: zombie
+      POSTGRES_PASSWORD: ${ZOMBIE_DB_PASSWORD:?Set ZOMBIE_DB_PASSWORD}
+      POSTGRES_DB: zombie_db
+    volumes: [zombie_db_data:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U zombie -d zombie_db"]
+      interval: 3s
+      timeout: 2s
+      retries: 20
+
+  resource-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: resource
+      POSTGRES_PASSWORD: ${RESOURCE_DB_PASSWORD:?Set RESOURCE_DB_PASSWORD}
+      POSTGRES_DB: resource_db
+    volumes: [resource_db_data:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U resource -d resource_db"]
+      interval: 3s
+      timeout: 2s
+      retries: 20
+
+  zombie-service:
+    image: unstoppabledestroyer/zombie-service:${LAB4_ZOMBIE_VERSION:-4.0.0}
+    restart: unless-stopped
+    deploy: {replicas: 2}
+    environment:
+      BROKER_EVENT_TOPICS: events.CycleChanged,events.LobbyFinished
+      <<: [*auth, *discovery]
+      PORT: 8005
+      DATABASE_URL: postgres://zombie:${ZOMBIE_DB_PASSWORD}@zombie-db:5432/zombie_db?sslmode=disable
+      PLAYER_JWKS_URL: http://player-service:8001/api/v1/auth/jwks
+      PLAYER_SERVICE_URL: http://message-broker:8600/player-service
+      RESOURCE_SERVICE_URL: http://message-broker:8600/resource-service
+      TASK_TIMEOUT_SECONDS: ${ZOMBIE_TASK_TIMEOUT_SECONDS:-15}
+      MAX_CONCURRENT_REQUESTS: ${ZOMBIE_MAX_CONCURRENT_REQUESTS:-100}
+      AUTH_DEV_TOKENS: "false"
+    depends_on:
+      log-volume-init: {condition: service_completed_successfully}
+      zombie-db: {condition: service_healthy}
+      service-discovery: {condition: service_started}
+    volumes: [system_logs:/logs]
+
+  resource-service:
+    image: unstoppabledestroyer/resource-service:${LAB4_RESOURCE_VERSION:-4.0.0}
+    restart: unless-stopped
+    deploy: {replicas: 2}
+    environment:
+      BROKER_EVENT_TOPICS: events.LobbyFinished
+      <<: [*auth, *discovery]
+      PORT: 8006
+      DATABASE_URL: postgres://resource:${RESOURCE_DB_PASSWORD}@resource-db:5432/resource_db?sslmode=disable
+      PLAYER_JWKS_URL: http://player-service:8001/api/v1/auth/jwks
+      TASK_TIMEOUT_SECONDS: ${RESOURCE_TASK_TIMEOUT_SECONDS:-15}
+      MAX_CONCURRENT_REQUESTS: ${RESOURCE_MAX_CONCURRENT_REQUESTS:-100}
+      AUTH_DEV_TOKENS: "false"
+    depends_on:
+      log-volume-init: {condition: service_completed_successfully}
+      resource-db: {condition: service_healthy}
+      service-discovery: {condition: service_started}
+    volumes: [system_logs:/logs]
+
+  game-service:
+    <<: *game
+    ports: ["${LAB4_GAME_PORT:-28002}:8002"]
+    environment:
+      BROKER_EVENT_TOPICS: events.WingUnlocked
+      <<: *game-env
+      INSTANCE_ID: game-1
+      INSTANCE_URL: http://game-service:8002
+      INSTANCE_WS_URL: ${LAB4_GAME_WS_URL:-ws://localhost:28002}
+    volumes: [system_logs:/logs]
+    depends_on:
+      log-volume-init: {condition: service_completed_successfully}
+      game-db: {condition: service_healthy}
+      service-discovery: {condition: service_started}
+
+  game-service-2:
+    <<: *game
+    ports: ["${LAB4_GAME2_PORT:-28012}:8002"]
+    environment:
+      BROKER_EVENT_TOPICS: events.WingUnlocked
+      <<: *game-env
+      INSTANCE_ID: game-2
+      INSTANCE_URL: http://game-service-2:8002
+      INSTANCE_WS_URL: ${LAB4_GAME2_WS_URL:-ws://localhost:28012}
+    volumes: [system_logs:/logs]
+    depends_on:
+      log-volume-init: {condition: service_completed_successfully}
+      game-db: {condition: service_healthy}
+      service-discovery: {condition: service_started}
+
+  exam-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: exam
+      POSTGRES_PASSWORD: ${EXAM_DB_PASSWORD:?Set EXAM_DB_PASSWORD}
+      POSTGRES_DB: exam_db
+    volumes: [exam_db_data:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U exam -d exam_db"]
+      interval: 3s
+      timeout: 2s
+      retries: 20
+
+  exam-service:
+    image: artflow/exam-service:${LAB4_EXAM_VERSION:-4.0.0}
+    restart: unless-stopped
+    deploy: {replicas: 2}
+    environment:
+      BROKER_EVENT_TOPICS: events.PlayerRegistered
+      <<: *node-env
+      PORT: 8003
+      DB_HOST: exam-db
+      DB_PORT: 5432
+      DB_USER: exam
+      DB_PASSWORD: ${EXAM_DB_PASSWORD}
+      DB_NAME: exam_db
+    depends_on:
+      log-volume-init: {condition: service_completed_successfully}
+      exam-db: {condition: service_healthy}
+      service-discovery: {condition: service_started}
+    volumes: [system_logs:/logs]
+
+  world-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: world
+      POSTGRES_PASSWORD: ${WORLD_DB_PASSWORD:?Set WORLD_DB_PASSWORD}
+      POSTGRES_DB: world_db
+    volumes: [world_db_data:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U world -d world_db"]
+      interval: 3s
+      timeout: 2s
+      retries: 20
+
+  world-service:
+    image: artflow/world-service:${LAB4_WORLD_VERSION:-4.0.0}
+    restart: unless-stopped
+    deploy: {replicas: 2}
+    environment:
+      BROKER_EVENT_TOPICS: events.ExamPassed,events.LobbyCreated
+      <<: *node-env
+      PORT: 8004
+      DB_HOST: world-db
+      DB_PORT: 5432
+      DB_USER: world
+      DB_PASSWORD: ${WORLD_DB_PASSWORD}
+      DB_NAME: world_db
+    depends_on:
+      log-volume-init: {condition: service_completed_successfully}
+      world-db: {condition: service_healthy}
+      service-discovery: {condition: service_started}
+    volumes: [system_logs:/logs]
+
+  base-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: base
+      POSTGRES_PASSWORD: ${BASE_DB_PASSWORD:?Set BASE_DB_PASSWORD}
+      POSTGRES_DB: base_db
+    volumes: [base_db_data:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U base -d base_db"]
+      interval: 3s
+      timeout: 2s
+      retries: 20
+
+  base-service:
+    image: nnick34567890/base-service:${LAB4_BASE_VERSION:-4.0.0}
+    restart: unless-stopped
+    deploy: {replicas: 2}
+    environment:
+      BROKER_EVENT_TOPICS: events.LobbyCreated,events.LobbyFinished
+      <<: *node-env
+      PORT: 8007
+      DB_HOST: base-db
+      DB_PORT: 5432
+      DB_USER: base
+      DB_PASSWORD: ${BASE_DB_PASSWORD}
+      DB_NAME: base_db
+    depends_on:
+      log-volume-init: {condition: service_completed_successfully}
+      base-db: {condition: service_healthy}
+      service-discovery: {condition: service_started}
+    volumes: [system_logs:/logs]
+
+  crafting-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: crafting
+      POSTGRES_PASSWORD: ${CRAFTING_DB_PASSWORD:?Set CRAFTING_DB_PASSWORD}
+      POSTGRES_DB: crafting_db
+    volumes: [crafting_db_data:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U crafting -d crafting_db"]
+      interval: 3s
+      timeout: 2s
+      retries: 20
+
+  crafting-service:
+    image: nnick34567890/crafting-service:${LAB4_CRAFTING_VERSION:-4.0.0}
+    restart: unless-stopped
+    deploy: {replicas: 2}
+    environment:
+      BROKER_EVENT_TOPICS: events.PlayerLeveledUp,events.ExamPassed,events.WingUnlocked
+      <<: *node-env
+      PORT: 8008
+      DB_HOST: crafting-db
+      DB_PORT: 5432
+      DB_USER: crafting
+      DB_PASSWORD: ${CRAFTING_DB_PASSWORD}
+      DB_NAME: crafting_db
+    depends_on:
+      log-volume-init: {condition: service_completed_successfully}
+      crafting-db: {condition: service_healthy}
+      service-discovery: {condition: service_started}
+    volumes: [system_logs:/logs]
+
+
+volumes:
+  broker_data:
+  system_logs:
+  prometheus_data:
+  grafana_data:
+  discovery_data:
+  player_db_data:
+  game_db_data:
+  player_signing_key_data:
+  zombie_db_data:
+  resource_db_data:
+  exam_db_data:
+  world_db_data:
+  base_db_data:
+  crafting_db_data:

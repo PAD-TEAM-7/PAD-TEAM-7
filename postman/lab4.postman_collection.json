@@ -1,0 +1,452 @@
+{
+  "info": {
+    "name": "PAD Team 7: Lab 4 broker and user API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Run the user requests in order. PlayerRegistered delivery is asynchronous: retry the course query until enrolment appears. Fill brokerAdminToken/discoveryToken only in your local Postman environment; never export real values to Git. Internal business communication uses the shared protobuf contract over gRPC; these REST calls are user/operations APIs."
+  },
+  "variable": [
+    {
+      "key": "gateway",
+      "value": "http://localhost:28080",
+      "type": "string"
+    },
+    {
+      "key": "broker",
+      "value": "http://localhost:28601",
+      "type": "string"
+    },
+    {
+      "key": "discovery",
+      "value": "http://localhost:28500",
+      "type": "string"
+    },
+    {
+      "key": "brokerAdminToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "discoveryToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "playerToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "playerId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "lobbyId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "demoUsername",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "demoEmail",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "demoPassword",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "User flow through native gRPC broker",
+      "item": [
+        {
+          "name": "1 Register a fresh demo player",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": "{{gateway}}/api/v1/players/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{demoUsername}}\",\n  \"email\": \"{{demoEmail}}\",\n  \"password\": \"{{demoPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const suffix = Date.now().toString();",
+                  "pm.collectionVariables.set(\"demoUsername\", \"lab4_\" + suffix);",
+                  "pm.collectionVariables.set(\"demoEmail\", \"lab4_\" + suffix + \"@demo.invalid\");",
+                  "pm.collectionVariables.set(\"demoPassword\", \"Demo_\" + pm.variables.replaceIn(\"{{$guid}}\") + \"A9!\");"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Created\", () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) pm.collectionVariables.set(\"playerId\", pm.response.json().player_id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2 Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": "{{gateway}}/api/v1/players/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{demoEmail}}\",\n  \"password\": \"{{demoPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Logged in\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) pm.collectionVariables.set(\"playerToken\", pm.response.json().access_token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3 Profile through broker",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              }
+            ],
+            "url": "{{gateway}}/api/v1/players/{{playerId}}"
+          }
+        },
+        {
+          "name": "4 Courses automatically enrolled by PlayerRegistered topic",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              }
+            ],
+            "url": "{{gateway}}/api/v1/players/{{playerId}}/courses"
+          }
+        },
+        {
+          "name": "5 Create lobby with real World and Base commands",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": "{{gateway}}/api/v1/lobbies",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Lab 4 mentor demo\",\n  \"university\": \"FAF\",\n  \"max_players\": 4\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Created\", () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) pm.collectionVariables.set(\"lobbyId\", pm.response.json().lobby_id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6 Lobby state",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              }
+            ],
+            "url": "{{gateway}}/api/v1/lobbies/{{lobbyId}}"
+          }
+        },
+        {
+          "name": "7 World map",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              }
+            ],
+            "url": "{{gateway}}/api/v1/worlds/{{lobbyId}}"
+          }
+        },
+        {
+          "name": "8 Recipe catalogue",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              }
+            ],
+            "url": "{{gateway}}/api/v1/recipes"
+          }
+        },
+        {
+          "name": "9 WebSocket owner negotiation",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              }
+            ],
+            "url": "{{gateway}}/ws/v1/lobbies/{{lobbyId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Authenticated broker operations",
+      "item": [
+        {
+          "name": "Broker liveness",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{broker}}/health"
+          }
+        },
+        {
+          "name": "Interested topics and subscriber groups",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{brokerAdminToken}}"
+              }
+            ],
+            "url": "{{broker}}/v1/topics"
+          }
+        },
+        {
+          "name": "Durable queue counts",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{brokerAdminToken}}"
+              }
+            ],
+            "url": "{{broker}}/v1/queues"
+          }
+        },
+        {
+          "name": "Dead letter metadata",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{brokerAdminToken}}"
+              }
+            ],
+            "url": "{{broker}}/v1/dead-letters"
+          }
+        },
+        {
+          "name": "Download system logs ? Send and Download ZIP",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{brokerAdminToken}}"
+              }
+            ],
+            "url": "{{broker}}/v1/logs/download"
+          }
+        },
+        {
+          "name": "Real broker Prometheus metrics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{broker}}/metrics"
+          }
+        },
+        {
+          "name": "Registered gRPC replicas, load and topics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{discoveryToken}}"
+              }
+            ],
+            "url": "{{discovery}}/v1/instances"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Gateway surface checks",
+      "item": [
+        {
+          "name": "Internal REST prefix is removed",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": "{{gateway}}/world-service/api/v1/events",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Internal route is absent\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Service-only XP route is removed",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": "{{gateway}}/api/v1/players/{{playerId}}/xp",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Internal route is absent\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

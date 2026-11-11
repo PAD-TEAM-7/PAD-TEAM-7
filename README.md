@@ -1,13 +1,57 @@
 # In Kahoots with the Undead
 
-## Lab 3 — Player, Game, Zombie and Resource scaling
+## Lab 4: durable gRPC message broker (release review pending)
 
-The Lab 3 deployment adds Python Service Discovery and two replicas each of Player, Game, Zombie and Resource,
+Lab 4 adds a Python broker with subscriber/topic queues, native gRPC workers in all
+eight domain services, encrypted durable delivery, dead letters, load-aware
+routing and operational log export. Gateway exposes user operations; internal
+service commands use the broker directly. See the [Lab 4 architecture](docs/architecture.md)
+and import [the Lab 4 Postman collection](postman/lab4.postman_collection.json).
+
+```powershell
+# From the CPR root; use the existing local deploy/.env plus the new Lab 4 keys.
+docker compose -f deploy/docker-compose.lab4.yml -f deploy/docker-compose.lab4.build.yml up -d --build
+```
+
+Local acceptance covers the complete eight-service gameplay flow, delegated Crafting
+balances, actual concurrent-load routing, three-failure exclusion/recovery, dead
+letters, authenticated log export and Prometheus/Grafana. A real registration also
+survived Broker restart while Exam was unavailable, then committed exactly one
+consumer event on recovery. Owner feature PRs remain subject to review and release.
+
+```powershell
+python -m pip install -r scripts/requirements-lab4.txt
+python scripts/lab4-team-smoke.py
+python scripts/lab4-operations-smoke.py
+# Controlled local disruption: stops Exam replicas and restarts Broker; retains all volumes.
+python scripts/lab4-durability-smoke.py
+```
+
+The build override is required until the reviewed `4.0.0` images are published.
+The independent Lab 4 stack uses Gateway `http://localhost:28080`, Broker operations
+`http://localhost:28601`, Discovery `http://localhost:28500`, Grafana
+`http://localhost:23000` and Prometheus `http://localhost:29090`. Grafana uses the
+local `GRAFANA_ADMIN_PASSWORD`; broker operations require the local
+`BROKER_ADMIN_TOKEN`. Broker/monitoring ports bind to localhost. Do not commit real
+credentials. Generate `BROKER_DATA_KEY` as base64 of 32 random bytes and retain it
+securely across broker restarts so existing durable work remains readable.
+
+The [protobuf contract](contracts/broker/v1/broker.proto) can be imported into a
+Postman gRPC request. Data-plane methods are `MessageBroker.Dispatch`, `Call`,
+`Publish`, and worker `Execute`/`Deliver`. Service JWT metadata uses audience
+`message-broker`; service traffic sent through Gateway is rejected in Lab 4.
+The REST Postman collection covers public user operations and authenticated broker
+management, including ZIP log download, current topics and dead letters.
+
+
+## Lab 3: eight-service scaling
+
+The Lab 3 deployment adds Python Service Discovery and two replicas of all eight domain services,
 dynamic routing, lobby affinity, health/load monitoring, SMTP alerts and circuit-breaker removal.
 The image-only deployment is [`deploy/docker-compose.lab3.yml`](deploy/docker-compose.lab3.yml).
 Run `python scripts/lab3-smoke.py` or `python scripts/lab3-maxim-smoke.py --fault-demo`
-from the CPR root to verify the running stack. Exam, World, Base and Crafting remain outside
-this implementation scope. The deployment runs alongside Lab 2.
+from the CPR root to verify the running stack. `scripts/lab3-team-smoke.py` covers
+the full team business flow. The Lab 3 deployment remains independently reproducible.
 
 
 **FAF.PAD21.1 — Autumn 2026 · Laboratories 0–2**
@@ -38,7 +82,10 @@ services themselves live in private repositories linked here as submodules.
 | 8 | Crafting Service | Gancear Nichita | TypeScript | `8008` | `crafting_db` |
 | 9 | [Gateway Service](./gateway-service) | Ilico Artemie | Python | `8080` | None |
 
-Supporting infrastructure: **Service Registry** on `8500`.
+Supporting infrastructure: **Service Discovery** on `8500`, **Message Broker**
+gRPC `8600` / operations `8601`, Prometheus and Grafana. The image below is the
+historical Lab 2 view; [the current Lab 4 diagram](docs/architecture.md) includes
+the broker, durable queues and monitoring.
 
 ![System architecture (Lab 2): game client, API gateway on 8080 in Python as the only entry point, the eight services grouped by language and owner with one database each, and the service registry on 8500](png_arh/architecture.drawio.png)
 

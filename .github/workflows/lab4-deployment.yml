@@ -1,0 +1,36 @@
+name: Lab 4 deployment
+
+on:
+  push:
+    branches: [main, development, 'feat/platform/**']
+  pull_request:
+    branches: [main, development]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate Lab 4 deployment using placeholder configuration
+        run: |
+          cp deploy/.env.example deploy/.env
+          docker compose -f deploy/docker-compose.lab4.yml config --quiet
+          docker compose -f deploy/docker-compose.lab4.yml -f deploy/docker-compose.lab4.build.yml config --quiet
+      - name: Validate acceptance clients and JSON artifacts
+        run: |
+          python -m py_compile scripts/lab4_client.py scripts/lab4-team-smoke.py scripts/lab4-operations-smoke.py scripts/lab4-durability-smoke.py scripts/lab4-worker-fixture.py scripts/lab4_rpc/*.py
+          python -m json.tool postman/lab4.postman_collection.json > /dev/null
+          python -m json.tool deploy/monitoring/grafana/dashboards/lab4.json > /dev/null
+      - name: Verify release images exist on main
+        if: github.ref == 'refs/heads/main'
+        run: |
+          docker compose -f deploy/docker-compose.lab4.yml config --images | sort -u | while IFS= read -r image; do
+            echo "Checking $image"
+            docker manifest inspect "$image" > /dev/null
+          done
