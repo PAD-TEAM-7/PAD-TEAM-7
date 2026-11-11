@@ -72,8 +72,8 @@ persisted in a named volume; the stateless Gateway needs no database.
 | Game Service | Islam Abu Koush | [`geografix/game-service`](https://hub.docker.com/r/geografix/game-service) | `1.0.0` | `8002` | [`postman/game-service.postman_collection.json`](./postman/game-service.postman_collection.json) |
 | Exam Service | Ilico Artemie | [`artflow/exam-service`](https://hub.docker.com/r/artflow/exam-service) | `2.0.0` | `8003` | [`postman/exam-service.postman_collection.json`](./postman/exam-service.postman_collection.json) |
 | World Service | Ilico Artemie | [`artflow/world-service`](https://hub.docker.com/r/artflow/world-service) | `2.0.0` | `8004` | [`postman/world-service.postman_collection.json`](./postman/world-service.postman_collection.json) |
-| Zombie Service | Roenco Maxim | [`geografix/zombie-service`](https://hub.docker.com/r/geografix/zombie-service) | `1.0.0` | `8005` | [`postman/zombie-service.postman_collection.json`](./postman/zombie-service.postman_collection.json) |
-| Resource Service | Roenco Maxim | [`geografix/resource-service`](https://hub.docker.com/r/geografix/resource-service) | `1.0.0` | `8006` | [`postman/resource-service.postman_collection.json`](./postman/resource-service.postman_collection.json) |
+| Zombie Service | Roenco Maxim | [`unstoppabledestroyer/zombie-service`](https://hub.docker.com/r/unstoppabledestroyer/zombie-service) | `1.0.0` | `8005` | [`postman/zombie-service.postman_collection.json`](./postman/zombie-service.postman_collection.json) |
+| Resource Service | Roenco Maxim | [`unstoppabledestroyer/resource-service`](https://hub.docker.com/r/unstoppabledestroyer/resource-service) | `1.0.0` | `8006` | [`postman/resource-service.postman_collection.json`](./postman/resource-service.postman_collection.json) |
 | Base Service | Gancear Nichita | [`nnick34567890/base-service`](https://hub.docker.com/r/nnick34567890/base-service) | `2.1.2` | `8007` | [`postman/base-service.postman_collection.json`](./postman/base-service.postman_collection.json) |
 | Crafting Service | Gancear Nichita | [`nnick34567890/crafting-service`](https://hub.docker.com/r/nnick34567890/crafting-service) | `2.1.2` | `8008` | [`postman/crafting-service.postman_collection.json`](./postman/crafting-service.postman_collection.json) |
 | Gateway Service | Ilico Artemie | [`artflow/gateway`](https://hub.docker.com/r/artflow/gateway) | `2.1.0` | `8080` | [`postman/gateway.postman_collection.json`](./postman/gateway.postman_collection.json). Every collection goes through the gateway |
@@ -3284,3 +3284,21 @@ Player inventory delivery.
 The team smoke check creates fresh demo records and uses the exam database only to
 read answers for its own generated verification exam; answers are never printed or
 exposed through a new API. Presentation guides and audit notes remain local.
+
+
+### Docker Hub ownership
+
+Each developer publishes their two domain services in their own Docker Hub account:
+
+| Developer | Docker Hub account | Domain repositories |
+| --- | --- | --- |
+| Islam | `geografix` | `player-service`, `game-service` |
+| Maxim | `unstoppabledestroyer` | `zombie-service`, `resource-service` |
+| Artiom | `artflow` | `exam-service`, `world-service` |
+| Nichita | `nnick34567890` | `base-service`, `crafting-service` |
+
+Shared infrastructure is separate from the two domain-service assignments: Gateway
+uses `artflow/gateway` and Discovery uses `geografix/service-discovery`. Each actual
+service has one canonical public repository. Version tags preserve the published
+Lab1/Lab2/Lab3 releases, and `latest` identifies the current release; architectures
+are variants of the same release, not additional service repositories.

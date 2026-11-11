@@ -71,7 +71,7 @@ services:
     volumes: [discovery_data:/app/data]
 
   gateway:
-    image: geografix/pad-gateway:${LAB3_GATEWAY_VERSION:-3.0.0}
+    image: artflow/gateway:${LAB3_GATEWAY_VERSION:-3.0.0}
     restart: unless-stopped
     ports: ["${LAB3_GATEWAY_PORT:-18080}:8080"]
     environment:
@@ -165,7 +165,7 @@ services:
       retries: 20
 
   zombie-service:
-    image: geografix/zombie-service:${LAB3_ZOMBIE_VERSION:-3.0.0}
+    image: unstoppabledestroyer/zombie-service:${LAB3_ZOMBIE_VERSION:-3.0.0}
     restart: unless-stopped
     deploy: {replicas: 2}
     environment:
@@ -183,7 +183,7 @@ services:
       service-discovery: {condition: service_started}
 
   resource-service:
-    image: geografix/resource-service:${LAB3_RESOURCE_VERSION:-3.0.0}
+    image: unstoppabledestroyer/resource-service:${LAB3_RESOURCE_VERSION:-3.0.0}
     restart: unless-stopped
     deploy: {replicas: 2}
     environment:
