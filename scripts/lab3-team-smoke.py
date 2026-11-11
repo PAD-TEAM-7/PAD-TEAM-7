@@ -33,6 +33,7 @@ def main():
     parser.add_argument("--env-file", type=Path, default=ROOT / "deploy/.env")
     parser.add_argument("--scale-demo", action="store_true")
     parser.add_argument("--fault-demo", action="store_true", help="Inject test replicas; sends configured alert emails")
+    parser.add_argument("--skip-game-demo", action="store_true", help="Validate an older partial deployment without the real Game scenario")
     args = parser.parse_args()
     env = dict(line.split("=", 1) for line in args.env_file.read_text().splitlines()
                if "=" in line and not line.lstrip().startswith("#"))
@@ -78,6 +79,8 @@ def main():
 
     registered = event("PlayerRegistered", {"player_id": player_id})
     request(api, "/exam-service/api/v1/events", "POST", registered, auth("exam-service", registered["event_id"]), expected=202)
+    if not args.skip_game_demo:
+        game_demo(api, player_id, player_auth, auth)
     world_key = str(uuid.uuid4())
     world_body = {"lobby_id": lobby, "university": "UTM", "seed": suffix}
     world, first = request(api, "/world-service/api/v1/worlds", "POST", world_body, auth("world-service", world_key), 201)
@@ -161,6 +164,120 @@ def main():
 
     if args.fault_demo:
         faults(args, admin, auth, active)
+
+
+def game_demo(api, player_id, player_auth, service_auth):
+    """Exercise Game's real World/Base/Resource/Exam/Zombie calls through Gateway."""
+    key = str(uuid.uuid4())
+    body = {"name": "full-game-" + key[:8], "university": "FAF", "max_players": 8}
+    lobby, first = request(api, "/game-service/api/v1/lobbies", "POST", body, player_auth(key), 201)
+    lobby_id = lobby["lobby_id"]
+    # Advance the stateless cursor when necessary, while using the same real client request.
+    for _ in range(4):
+        replay, second = request(api, "/game-service/api/v1/lobbies", "POST", body, player_auth(key), 201)
+        assert replay["lobby_id"] == lobby_id and replay["base_id"] == lobby["base_id"]
+        if first["X-Service-Instance"] != second["X-Service-Instance"]:
+            break
+    else:
+        raise AssertionError("Lobby replay was not exercised on a second Game replica")
+    world, _ = request(api, f"/world-service/api/v1/worlds/{lobby_id}", headers=player_auth())
+    base, _ = request(api, f"/base-service/api/v1/bases/{lobby['base_id']}", headers=player_auth())
+    assert base["home_room_id"] == world["home_room_id"]
+    print("PASS: Game lobby replay across replicas prepares one real World/Base with the correct home room", flush=True)
+
+    def ready_node():
+        nodes, _ = request(api, f"/world-service/api/v1/worlds/{lobby_id}/nodes", headers=service_auth("world-service"))
+        return next((n for n in nodes["items"] if n["item_id"] == "wood-01" and n["pool_id"]), None)
+
+    node = eventually(ready_node)
+
+    def action(kind, node_id=""):
+        action_key = str(uuid.uuid4())
+        body = {"action_type": kind, "target_room_id": node["room_id"], "target_node_id": node_id}
+        started, _ = request(api, f"/game-service/api/v1/lobbies/{lobby_id}/actions", "POST", body, player_auth(action_key), 202)
+        replay, _ = request(api, f"/game-service/api/v1/lobbies/{lobby_id}/actions", "POST", body, player_auth(action_key), 202)
+        assert started["action_id"] == replay["action_id"]
+
+        def complete():
+            result, _ = request(api, "/game-service/api/v1/actions/" + started["action_id"], headers=player_auth())
+            return result if result["status"] == "completed" else None
+
+        return eventually(complete)
+
+    result = action("chop_bench", node["node_id"])
+    assert result["reward"]["items"] == [{"item_id": "wood-01", "count": 1}]
+    balances, _ = request(api, f"/resource-service/api/v1/players/{player_id}/resources?lobby_id={lobby_id}", headers=player_auth())
+    assert next(v["amount"] for v in balances["resources"] if v["item_id"] == "wood-01") == 1
+    action("clear_room")
+    room, _ = request(api, "/world-service/api/v1/rooms/" + node["room_id"], headers=player_auth())
+    assert room["safe"]
+    print("PASS: Game completes a real node gather once and clears the actual World room", flush=True)
+
+    pool, _ = request(api, "/resource-service/api/v1/pools", "POST", {
+        "lobby_id": lobby_id, "room_id": node["room_id"], "node_id": str(uuid.uuid4()), "kind": "node",
+        "initial_stock": [{"item_id": "wood-01", "count": 30}],
+    }, service_auth("resource-service", str(uuid.uuid4())), 201)
+    request(api, "/resource-service/api/v1/transactions/gather", "POST", {
+        "lobby_id": lobby_id, "player_id": player_id, "source_pool_id": pool["pool_id"],
+        "action_id": str(uuid.uuid4()), "reason": "game-demo-fixture", "items": [{"item_id": "wood-01", "count": 30}],
+    }, service_auth("resource-service", str(uuid.uuid4())))
+    built = action("barricade_room")
+    barricade_id = built["reward"]["barricade_id"]
+    request(api, "/base-service/api/v1/barricades/" + barricade_id, "PATCH",
+            {"operation": "damage", "amount": 5}, service_auth("base-service", str(uuid.uuid4())))
+    repaired = action("repair_base")
+    assert repaired["reward"]["health"] == repaired["reward"]["strength"]
+    print("PASS: Game builds and repairs a real Base barricade using real Resource balances", flush=True)
+
+    cycle_key = str(uuid.uuid4())
+    path = f"/game-service/api/v1/lobbies/{lobby_id}/cycle"
+    night, _ = request(api, path, "POST", {}, service_auth("game-service", cycle_key))
+    replay, _ = request(api, path, "POST", {}, service_auth("game-service", cycle_key))
+    assert night["phase"] == replay["phase"] == "night" and night["day"] == replay["day"] == 1
+    day, _ = request(api, path, "POST", {}, service_auth("game-service", str(uuid.uuid4())))
+    assert day["phase"] == "day" and day["day"] == 2
+    print("PASS: Game sends valid World/Zombie cycle events; replay never advances the cycle twice", flush=True)
+
+    zombie, _ = request(api, "/zombie-service/api/v1/zombies", "POST",
+                        {"type_id": "professor_zombie", "lobby_id": lobby_id, "room_id": node["room_id"]},
+                        service_auth("zombie-service", str(uuid.uuid4())), 201)
+    encounter_key = str(uuid.uuid4())
+    encounter_body = {"player_id": player_id, "zombie_id": zombie["zombie_id"], "zombie_type": "professor_zombie"}
+    path = f"/game-service/api/v1/lobbies/{lobby_id}/encounters"
+    encounter, _ = request(api, path, "POST", encounter_body, service_auth("game-service", encounter_key), 201)
+    replay, _ = request(api, path, "POST", encounter_body, service_auth("game-service", encounter_key), 201)
+    assert encounter == replay and encounter["outcome"] == "exam_started"
+    exam, _ = request(api, "/exam-service/api/v1/exams/" + encounter["exam_id"], headers=player_auth())
+    assert len(exam["questions"]) == 10
+    # Answers are test setup inside the fixture DB, never exposed by an application API.
+    exam_id = str(uuid.UUID(encounter["exam_id"]))
+    sql = ("SELECT json_agg(json_build_object('question_id',q.question_id,'option_index',q.correct_option)) "
+           "FROM exam_questions e JOIN questions q USING(question_id) WHERE e.exam_id='" + exam_id + "'")
+    answers = json.loads(subprocess.check_output([
+        "docker", "compose", "-f", "deploy/docker-compose.lab3.yml", "exec", "-T", "exam-db",
+        "psql", "-U", "exam", "-d", "exam_db", "-At", "-c", sql,
+    ], cwd=ROOT, text=True))
+    for answer in answers:
+        request(api, f"/exam-service/api/v1/exams/{exam_id}/answers", "POST", answer, player_auth())
+    result, _ = request(api, f"/exam-service/api/v1/exams/{exam_id}/submit", "POST", {}, player_auth(str(uuid.uuid4())))
+    assert result["grade"] == 10
+
+    def unlocked():
+        wings, _ = request(api, f"/world-service/api/v1/worlds/{lobby_id}/wings", headers=player_auth())
+        return sum(bool(w["unlocked"]) for w in wings["items"]) >= 2
+
+    eventually(unlocked)
+
+    def callback_received():
+        query = "SELECT count(*) FROM received_events WHERE fingerprint LIKE '%" + lobby_id + "%'"
+        count = subprocess.check_output([
+            "docker", "compose", "-f", "deploy/docker-compose.lab3.yml", "exec", "-T", "game-db",
+            "psql", "-U", "game", "-d", "game_db", "-At", "-c", query,
+        ], cwd=ROOT, text=True).strip()
+        return int(count) == 1
+
+    eventually(callback_received)
+    print("PASS: Game professor exam replay, real passing submission, World wing unlock and authenticated Game callback", flush=True)
 
 
 def faults(args, admin, auth, active):

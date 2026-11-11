@@ -29,7 +29,7 @@ x-node: &node-env
   CIRCUIT_BREAKER_MODE: remove
 
 x-game: &game
-  image: geografix/game-service:${LAB3_GAME_VERSION:-3.0.0}
+  image: geografix/game-service:${LAB3_GAME_VERSION:-3.0.1}
   restart: unless-stopped
   depends_on:
     game-db: {condition: service_healthy}
@@ -37,14 +37,15 @@ x-game: &game
   environment: &game-env
     <<: [*auth, *discovery]
     PORT: 8002
+    GAME_SERVICE_URL: http://gateway:8080/game-service
     DATABASE_URL: postgres://game:${GAME_DB_PASSWORD}@game-db:5432/game_db?sslmode=disable
     PLAYER_JWKS_URL: http://gateway:8080/api/v1/auth/jwks
     PLAYER_SERVICE_URL: http://gateway:8080/player-service
-    WORLD_SERVICE_URL: ${LAB3_WORLD_SERVICE_URL:-}
-    BASE_SERVICE_URL: ${LAB3_BASE_SERVICE_URL:-}
-    RESOURCE_SERVICE_URL: ${LAB3_RESOURCE_SERVICE_URL:-}
-    EXAM_SERVICE_URL: ${LAB3_EXAM_SERVICE_URL:-}
-    ZOMBIE_SERVICE_URL: ${LAB3_ZOMBIE_SERVICE_URL:-}
+    WORLD_SERVICE_URL: ${LAB3_WORLD_SERVICE_URL:-http://gateway:8080/world-service}
+    BASE_SERVICE_URL: ${LAB3_BASE_SERVICE_URL:-http://gateway:8080/base-service}
+    RESOURCE_SERVICE_URL: ${LAB3_RESOURCE_SERVICE_URL:-http://gateway:8080/resource-service}
+    EXAM_SERVICE_URL: ${LAB3_EXAM_SERVICE_URL:-http://gateway:8080/exam-service}
+    ZOMBIE_SERVICE_URL: ${LAB3_ZOMBIE_SERVICE_URL:-http://gateway:8080/zombie-service}
     ACTION_TIME_SCALE: ${ACTION_TIME_SCALE:-0.01}
     TASK_TIMEOUT_SECONDS: ${GAME_TASK_TIMEOUT_SECONDS:-15}
     MAX_CONCURRENT_REQUESTS: ${GAME_MAX_CONCURRENT_REQUESTS:-100}
@@ -260,7 +261,7 @@ services:
       retries: 20
 
   world-service:
-    image: artflow/world-service:${LAB3_WORLD_VERSION:-3.0.1}
+    image: artflow/world-service:${LAB3_WORLD_VERSION:-3.0.3}
     restart: unless-stopped
     deploy: {replicas: 2}
     environment:
