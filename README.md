@@ -3264,8 +3264,8 @@ python scripts/lab3-team-smoke.py
 
 The Gateway listens on `http://localhost:18080`, and Discovery on
 `http://localhost:18500` (its authenticated API is documented at `/docs`).
-All eight domain services run with two registered instances. The four TypeScript
-services use their owners' `3.0.1` releases. Separate databases store domain state;
+All eight domain services run with two registered instances. Base and Crafting use
+`3.0.1`, Exam uses `3.0.2`, and World uses `3.0.3`. Separate databases store domain state;
 replicas of one service share its database. Game retains lobby/WebSocket ownership.
 
 For local builds, add `-f deploy/docker-compose.lab3.build.yml` to the Compose command
