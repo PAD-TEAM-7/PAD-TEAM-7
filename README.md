@@ -23,6 +23,7 @@ consumer event on recovery. Owner feature PRs remain subject to review and relea
 python -m pip install -r scripts/requirements-lab4.txt
 python scripts/lab4-team-smoke.py
 python scripts/lab4-operations-smoke.py
+python scripts/lab4-availability-smoke.py
 # Controlled local disruption: stops Exam replicas and restarts Broker; retains all volumes.
 python scripts/lab4-durability-smoke.py
 ```

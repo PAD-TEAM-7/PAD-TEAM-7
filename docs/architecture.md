@@ -54,9 +54,10 @@ Producer outboxes commit outgoing events with the source business transaction.
 Broker receipts acknowledge durable acceptance, not completion by every consumer.
 Delivery is at least once: event IDs and command idempotency keys must be enforced
 inside each consumer's business transaction. Unkeyed mutations are not blindly
-retried after ambiguous downstream failures. Game's persisted lobby/WebSocket
-ownership is preserved; a missing owner does not cause unsafe automatic ownership
-transfer. Clients reconnect using the negotiation endpoint after recovery.
+retried after ambiguous downstream failures. Game business commands can fail over
+because their state, idempotency and action claims live in shared PostgreSQL.
+WebSocket broadcast callbacks retain the persisted stream owner; existing TCP
+connections are not moved implicitly. Clients reconnect after stream owner recovery.
 
 Existing Gateway-prefixed dependency paths are interpreted as logical topic
 addresses by the native adapters in Lab 4. The Lab 4 deployment points them at
@@ -67,7 +68,7 @@ caller payloads and URL path contracts during the migration.
 All four developers retain their two domain image repositories. Gateway remains
 `artflow/gateway`, Discovery remains `geografix/service-discovery`, and the only
 new image repository is `unstoppabledestroyer/message-broker`. Release tags are
-immutable; `latest` is an alias of the reviewed release. Historical Lab 1?3 tags
+immutable; `latest` is an alias of the reviewed release. Historical Lab 1 through 3 tags
 are retained for reproducibility.
 
 Lab 4 runs with `deploy/docker-compose.lab4.yml`; use its build override while
