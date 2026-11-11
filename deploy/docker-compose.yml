@@ -288,7 +288,7 @@ services:
       - zombie_db_data:/var/lib/postgresql/data
 
   zombie-service:
-    image: geografix/zombie-service:${ZOMBIE_SERVICE_VERSION:-2.0.0}
+    image: unstoppabledestroyer/zombie-service:${ZOMBIE_SERVICE_VERSION:-2.0.0}
     restart: unless-stopped
     environment:
       <<: [*auth, *via-gateway]
@@ -316,7 +316,7 @@ services:
       - resource_db_data:/var/lib/postgresql/data
 
   resource-service:
-    image: geografix/resource-service:${RESOURCE_SERVICE_VERSION:-2.0.0}
+    image: unstoppabledestroyer/resource-service:${RESOURCE_SERVICE_VERSION:-2.0.0}
     restart: unless-stopped
     environment:
       <<: [*auth, *via-gateway]
