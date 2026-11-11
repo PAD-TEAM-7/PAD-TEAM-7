@@ -1,0 +1,45 @@
+syntax = "proto3";
+package pad.broker.v1;
+option go_package = "github.com/PAD-TEAM-7/message-broker/gen/go;brokerrpc";
+
+// The broker owns delivery, discovery, balancing and retries. Business payloads
+// retain their versioned JSON schema while the inter-service wire is gRPC.
+service MessageBroker {
+  rpc Dispatch(Command) returns (Reply); // Gateway -> named subscriber queue
+  rpc Call(Command) returns (Reply);     // service -> logical command topic
+  rpc Publish(Event) returns (Receipt);  // service -> event topic fan-out
+}
+service ServiceWorker {
+  rpc Execute(Command) returns (Reply);
+  rpc Deliver(Event) returns (Reply);
+}
+message Command {
+  string request_id = 1;
+  string destination = 2;
+  string topic = 3;
+  string method = 4;
+  string path = 5;
+  map<string, string> headers = 6;
+  bytes body = 7;
+  string affinity = 8;
+  string idempotency_key = 9;
+  uint32 timeout_ms = 10;
+}
+message Reply {
+  uint32 status = 1;
+  map<string, string> headers = 2;
+  bytes body = 3;
+  string instance_id = 4;
+  string attempt_id = 5;
+}
+message Event {
+  string event_id = 1;
+  string topic = 2;
+  string producer = 3;
+  bytes body = 4;
+  string request_id = 5;
+}
+message Receipt {
+  string message_id = 1;
+  bool duplicate = 2;
+}

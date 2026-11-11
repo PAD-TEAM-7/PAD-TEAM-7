@@ -28,3 +28,6 @@
 [submodule "service-discovery"]
 	path = service-discovery
 	url = https://github.com/PAD-TEAM-7/service-discovery.git
+[submodule "message-broker"]
+	path = message-broker
+	url = https://github.com/PAD-TEAM-7/message-broker.git
