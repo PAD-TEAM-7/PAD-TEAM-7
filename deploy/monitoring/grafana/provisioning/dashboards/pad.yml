@@ -1,0 +1,9 @@
+apiVersion: 1
+providers:
+  - name: PAD Lab 4
+    orgId: 1
+    folder: PAD Team 7
+    type: file
+    disableDeletion: true
+    options:
+      path: /var/lib/grafana/dashboards
