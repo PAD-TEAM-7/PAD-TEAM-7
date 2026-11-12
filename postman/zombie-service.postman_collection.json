@@ -1,19 +1,296 @@
 {
-  "info":{"name":"PAD TEAM 7 - Zombie Service","schema":"https://schema.getpostman.com/json/collection/v2.1.0/collection.json"},
-  "variable":[{"key":"zombieUrl","value":"http://localhost:8080/zombie-service"},{"key":"resourceUrl","value":"http://localhost:8080/resource-service"},{"key":"playerUrl","value":"http://localhost:8080/player-service"},{"key":"zombieToken","value":""},{"key":"resourceToken","value":""},{"key":"playerToken","value":""},{"key":"email","value":""},{"key":"username","value":""},{"key":"playerId","value":""},{"key":"lobbyId","value":""},{"key":"poolId","value":""},{"key":"zombieId","value":""},{"key":"stealKey","value":""},{"key":"damageKey","value":""},{"key":"killKey","value":""}],
-  "item":[
-    {"name":"Health","request":{"method":"GET","url":"{{zombieUrl}}/api/v1/health"},"event":[{"listen":"test","script":{"exec":["pm.test('status 200',()=>pm.response.to.have.status(200));"]}}]},
-    {"name":"Zombie service token","event":[{"listen":"prerequest","script":{"exec":["const suffix=Date.now()+'-'+Math.floor(Math.random()*100000);","pm.collectionVariables.set('email','zombie-'+suffix+'@example.com');","pm.collectionVariables.set('username','zombie'+suffix.replace(/-/g,''));","pm.collectionVariables.set('lobbyId',pm.variables.replaceIn('{{$guid}}'));","pm.collectionVariables.set('stealKey',pm.variables.replaceIn('{{$guid}}'));","pm.collectionVariables.set('damageKey',pm.variables.replaceIn('{{$guid}}'));","pm.collectionVariables.set('killKey',pm.variables.replaceIn('{{$guid}}'));"]}},{"listen":"test","script":{"exec":["pm.test('status 201',()=>pm.response.to.have.status(201));","pm.collectionVariables.set('zombieToken',pm.response.json().access_token);"]}}],"request":{"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\"subject\":\"game-service\",\"role\":\"service\"}"},"url":"{{zombieUrl}}/api/v1/dev/tokens"}},
-    {"name":"Resource service token","event":[{"listen":"test","script":{"exec":["pm.test('status 201',()=>pm.response.to.have.status(201));","pm.collectionVariables.set('resourceToken',pm.response.json().access_token);"]}}],"request":{"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\"subject\":\"zombie-service\",\"role\":\"service\"}"},"url":"{{resourceUrl}}/api/v1/dev/tokens"}},
-    {"name":"Register player","event":[{"listen":"test","script":{"exec":["pm.test('status 201',()=>pm.response.to.have.status(201));","pm.collectionVariables.set('playerId',pm.response.json().player_id);"]}}],"request":{"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\"username\":\"{{username}}\",\"email\":\"{{email}}\",\"password\":\"correct-horse-battery\"}"},"url":"{{playerUrl}}/api/v1/players/register"}},
-    {"name":"Login player","event":[{"listen":"test","script":{"exec":["pm.test('status 200',()=>pm.response.to.have.status(200));","pm.collectionVariables.set('playerToken',pm.response.json().access_token);"]}}],"request":{"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\"email\":\"{{email}}\",\"password\":\"correct-horse-battery\"}"},"url":"{{playerUrl}}/api/v1/players/login"}},
-    {"name":"Create source pool","event":[{"listen":"test","script":{"exec":["pm.test('status 201',()=>pm.response.to.have.status(201));","pm.collectionVariables.set('poolId',pm.response.json().pool_id);"]}}],"request":{"method":"POST","header":[{"key":"Authorization","value":"Bearer {{resourceToken}}"},{"key":"Idempotency-Key","value":"{{$guid}}"},{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\"lobby_id\":\"{{lobbyId}}\",\"room_id\":\"corridor-b\",\"node_id\":\"node-{{$guid}}\",\"kind\":\"node\",\"initial_stock\":[{\"item_id\":\"metal-01\",\"count\":10}]}"},"url":"{{resourceUrl}}/api/v1/pools"}},
-    {"name":"Spawn tourist","event":[{"listen":"test","script":{"exec":["pm.test('status 201',()=>pm.response.to.have.status(201));","pm.test('health 70',()=>pm.expect(pm.response.json().health).to.eql(70));","pm.collectionVariables.set('zombieId',pm.response.json().zombie_id);"]}}],"request":{"method":"POST","header":[{"key":"Authorization","value":"Bearer {{zombieToken}}"},{"key":"Idempotency-Key","value":"{{$guid}}"},{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\"type_id\":\"tourist_zombie\",\"lobby_id\":\"{{lobbyId}}\",\"room_id\":\"corridor-b\",\"spawn_id\":\"spawn-{{$guid}}\"}"},"url":"{{zombieUrl}}/api/v1/zombies"}},
-    {"name":"Steal node stock","event":[{"listen":"test","script":{"exec":["pm.test('status 200',()=>pm.response.to.have.status(200));","pm.test('holds stolen stock',()=>pm.expect(pm.response.json().inventory[0].count).to.eql(3));"]}}],"request":{"method":"POST","header":[{"key":"Authorization","value":"Bearer {{zombieToken}}"},{"key":"Idempotency-Key","value":"{{stealKey}}"},{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\"victim_type\":\"node\",\"victim_id\":\"{{poolId}}\",\"items\":[{\"item_id\":\"metal-01\",\"count\":3}],\"xp\":0}"},"url":"{{zombieUrl}}/api/v1/zombies/{{zombieId}}/steal"}},
-    {"name":"Replay theft","event":[{"listen":"test","script":{"exec":["pm.test('status 200',()=>pm.response.to.have.status(200));","pm.test('replayed',()=>pm.expect(pm.response.json().replayed).to.eql(true));"]}}],"request":{"method":"POST","header":[{"key":"Authorization","value":"Bearer {{zombieToken}}"},{"key":"Idempotency-Key","value":"{{stealKey}}"},{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\"victim_type\":\"node\",\"victim_id\":\"{{poolId}}\",\"items\":[{\"item_id\":\"metal-01\",\"count\":3}],\"xp\":0}"},"url":"{{zombieUrl}}/api/v1/zombies/{{zombieId}}/steal"}},
-    {"name":"Defeat zombie","event":[{"listen":"test","script":{"exec":["pm.test('status 200',()=>pm.response.to.have.status(200));","pm.test('killed',()=>pm.expect(pm.response.json().killed).to.eql(true));"]}}],"request":{"method":"POST","header":[{"key":"Authorization","value":"Bearer {{zombieToken}}"},{"key":"Idempotency-Key","value":"{{damageKey}}"},{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\"amount\":70,\"source_player_id\":\"{{playerId}}\",\"weapon_item_id\":\"axe-01\"}"},"url":"{{zombieUrl}}/api/v1/zombies/{{zombieId}}/damage"}},
-    {"name":"Kill and collect loot","event":[{"listen":"test","script":{"exec":["pm.test('status 200',()=>pm.response.to.have.status(200));","pm.test('dead',()=>pm.expect(pm.response.json().state).to.eql('dead'));","pm.test('transferred stock',()=>pm.expect(pm.response.json().transferred_items[0].count).to.eql(3));"]}}],"request":{"method":"POST","header":[{"key":"Authorization","value":"Bearer {{zombieToken}}"},{"key":"Idempotency-Key","value":"{{killKey}}"},{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\"killer_player_id\":\"{{playerId}}\",\"lobby_id\":\"{{lobbyId}}\"}"},"url":"{{zombieUrl}}/api/v1/zombies/{{zombieId}}/kill"}},
-    {"name":"Replay kill","event":[{"listen":"test","script":{"exec":["pm.test('status 200',()=>pm.response.to.have.status(200));","pm.test('replayed',()=>pm.expect(pm.response.json().replayed).to.eql(true));"]}}],"request":{"method":"POST","header":[{"key":"Authorization","value":"Bearer {{zombieToken}}"},{"key":"Idempotency-Key","value":"{{killKey}}"},{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\"killer_player_id\":\"{{playerId}}\",\"lobby_id\":\"{{lobbyId}}\"}"},"url":"{{zombieUrl}}/api/v1/zombies/{{zombieId}}/kill"}},
-    {"name":"Killer inventory","event":[{"listen":"test","script":{"exec":["pm.test('status 200',()=>pm.response.to.have.status(200));","pm.test('metal delivered once',()=>{const i=pm.response.json().items.find(x=>x.item_id==='metal-01');pm.expect(i.count).to.eql(3);});"]}}],"request":{"method":"GET","header":[{"key":"Authorization","value":"Bearer {{playerToken}}"}],"url":"{{playerUrl}}/api/v1/players/{{playerId}}/inventory"}}
+  "info": {
+    "name": "PAD Lab 4 - zombie-service",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Current Lab 4 deployment (Gateway 28080, Broker 28601, Discovery 28500). FIRST run scripts/lab4-prepare-postman.py and import its PRIVATE environment. Run folders in order. Regenerate fixtures before repeating a collection. All requests assert their expected status. Removed service-only Gateway routes deliberately expect 404. Native gRPC examples: postman/grpc/README.md. Never export real environment credentials into Git."
+  },
+  "variable": [
+    {
+      "key": "gateway",
+      "value": "http://localhost:28080"
+    },
+    {
+      "key": "broker",
+      "value": "http://localhost:28601"
+    },
+    {
+      "key": "discovery",
+      "value": "http://localhost:28500"
+    }
+  ],
+  "item": [
+    {
+      "name": "zombie-service",
+      "item": [
+        {
+          "name": "01 Zombie type catalogue",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/zombie-types",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) { const data = pm.response.json();",
+                  "pm.test(\"zombieTypeId returned\", () => pm.expect(data.items[0].type_id).to.be.a(\"string\").and.not.empty);",
+                  "pm.environment.set(\"zombieTypeId\", data.items[0].type_id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 Zombie type details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/zombie-types/{{zombieTypeId}}",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Spawn uses Broker (removed: 404)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/zombies",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Gateway removed route\", () => pm.expect(pm.response.json().error.code).to.eql(\"ROUTE_NOT_FOUND\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Damage uses Broker (removed: 404)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/zombies/00000000-0000-4000-8000-000000000000/damage",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Gateway removed route\", () => pm.expect(pm.response.json().error.code).to.eql(\"ROUTE_NOT_FOUND\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Kill uses Broker (removed: 404)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/zombies/00000000-0000-4000-8000-000000000000/kill",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Gateway removed route\", () => pm.expect(pm.response.json().error.code).to.eql(\"ROUTE_NOT_FOUND\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Steal uses Broker (removed: 404)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/zombies/00000000-0000-4000-8000-000000000000/steal",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Gateway removed route\", () => pm.expect(pm.response.json().error.code).to.eql(\"ROUTE_NOT_FOUND\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
   ]
 }

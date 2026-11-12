@@ -1,0 +1,300 @@
+{
+  "description": "Render with lab4-prepare-postman.py. Service operations use Call; Dispatch is Gateway-only. JSON bodies become protobuf base64 bytes.",
+  "requests": [
+    {
+      "name": "player real status/load",
+      "source": "game-service",
+      "rpc": "pad.broker.v1.MessageBroker/Call",
+      "expected_reply_status": 200,
+      "message": {
+        "topic": "commands.player",
+        "method": "GET",
+        "path": "/api/v1/status",
+        "timeout_ms": 10000
+      },
+      "json_body": null
+    },
+    {
+      "name": "game real status/load",
+      "source": "game-service",
+      "rpc": "pad.broker.v1.MessageBroker/Call",
+      "expected_reply_status": 200,
+      "message": {
+        "topic": "commands.game",
+        "method": "GET",
+        "path": "/api/v1/status",
+        "timeout_ms": 10000
+      },
+      "json_body": null
+    },
+    {
+      "name": "exam real status/load",
+      "source": "game-service",
+      "rpc": "pad.broker.v1.MessageBroker/Call",
+      "expected_reply_status": 200,
+      "message": {
+        "topic": "commands.exam",
+        "method": "GET",
+        "path": "/api/v1/status",
+        "timeout_ms": 10000
+      },
+      "json_body": null
+    },
+    {
+      "name": "world real status/load",
+      "source": "game-service",
+      "rpc": "pad.broker.v1.MessageBroker/Call",
+      "expected_reply_status": 200,
+      "message": {
+        "topic": "commands.world",
+        "method": "GET",
+        "path": "/api/v1/status",
+        "timeout_ms": 10000
+      },
+      "json_body": null
+    },
+    {
+      "name": "zombie real status/load",
+      "source": "game-service",
+      "rpc": "pad.broker.v1.MessageBroker/Call",
+      "expected_reply_status": 200,
+      "message": {
+        "topic": "commands.zombie",
+        "method": "GET",
+        "path": "/api/v1/status",
+        "timeout_ms": 10000
+      },
+      "json_body": null
+    },
+    {
+      "name": "resource real status/load",
+      "source": "game-service",
+      "rpc": "pad.broker.v1.MessageBroker/Call",
+      "expected_reply_status": 200,
+      "message": {
+        "topic": "commands.resource",
+        "method": "GET",
+        "path": "/api/v1/status",
+        "timeout_ms": 10000
+      },
+      "json_body": null
+    },
+    {
+      "name": "base real status/load",
+      "source": "game-service",
+      "rpc": "pad.broker.v1.MessageBroker/Call",
+      "expected_reply_status": 200,
+      "message": {
+        "topic": "commands.base",
+        "method": "GET",
+        "path": "/api/v1/status",
+        "timeout_ms": 10000
+      },
+      "json_body": null
+    },
+    {
+      "name": "crafting real status/load",
+      "source": "game-service",
+      "rpc": "pad.broker.v1.MessageBroker/Call",
+      "expected_reply_status": 200,
+      "message": {
+        "topic": "commands.crafting",
+        "method": "GET",
+        "path": "/api/v1/status",
+        "timeout_ms": 10000
+      },
+      "json_body": null
+    },
+    {
+      "name": "Player internal inventory read",
+      "source": "crafting-service",
+      "rpc": "pad.broker.v1.MessageBroker/Call",
+      "expected_reply_status": 200,
+      "message": {
+        "topic": "commands.player",
+        "method": "GET",
+        "path": "/api/v1/players/{{playerId}}/inventory",
+        "timeout_ms": 10000
+      },
+      "json_body": null
+    },
+    {
+      "name": "Player internal XP award",
+      "source": "exam-service",
+      "rpc": "pad.broker.v1.MessageBroker/Call",
+      "expected_reply_status": 200,
+      "message": {
+        "topic": "commands.player",
+        "method": "POST",
+        "path": "/api/v1/players/{{playerId}}/xp",
+        "timeout_ms": 10000
+      },
+      "json_body": {
+        "amount": 1,
+        "reason": "postman-grpc",
+        "source": "exam-service"
+      }
+    },
+    {
+      "name": "Game internal cycle",
+      "source": "game-service",
+      "rpc": "pad.broker.v1.MessageBroker/Call",
+      "expected_reply_status": 200,
+      "message": {
+        "topic": "commands.game",
+        "method": "POST",
+        "path": "/api/v1/lobbies/{{lobbyId}}/cycle",
+        "timeout_ms": 10000
+      },
+      "json_body": {}
+    },
+    {
+      "name": "Exam internal passed courses",
+      "source": "crafting-service",
+      "rpc": "pad.broker.v1.MessageBroker/Call",
+      "expected_reply_status": 200,
+      "message": {
+        "topic": "commands.exam",
+        "method": "GET",
+        "path": "/api/v1/players/{{playerId}}/passed",
+        "timeout_ms": 10000
+      },
+      "json_body": null
+    },
+    {
+      "name": "World internal nodes",
+      "source": "game-service",
+      "rpc": "pad.broker.v1.MessageBroker/Call",
+      "expected_reply_status": 200,
+      "message": {
+        "topic": "commands.world",
+        "method": "GET",
+        "path": "/api/v1/worlds/{{lobbyId}}/nodes",
+        "timeout_ms": 10000
+      },
+      "json_body": null
+    },
+    {
+      "name": "World internal spawns",
+      "source": "zombie-service",
+      "rpc": "pad.broker.v1.MessageBroker/Call",
+      "expected_reply_status": 200,
+      "message": {
+        "topic": "commands.world",
+        "method": "GET",
+        "path": "/api/v1/worlds/{{lobbyId}}/spawns",
+        "timeout_ms": 10000
+      },
+      "json_body": null
+    },
+    {
+      "name": "Zombie spawn",
+      "source": "game-service",
+      "rpc": "pad.broker.v1.MessageBroker/Call",
+      "expected_reply_status": 201,
+      "message": {
+        "topic": "commands.zombie",
+        "method": "POST",
+        "path": "/api/v1/zombies",
+        "timeout_ms": 10000
+      },
+      "json_body": {
+        "type_id": "tourist_zombie",
+        "lobby_id": "{{lobbyId}}",
+        "room_id": "{{roomId}}"
+      }
+    },
+    {
+      "name": "Zombie damage prepared fixture",
+      "source": "game-service",
+      "rpc": "pad.broker.v1.MessageBroker/Call",
+      "expected_reply_status": 200,
+      "message": {
+        "topic": "commands.zombie",
+        "method": "POST",
+        "path": "/api/v1/zombies/{{zombieId}}/damage",
+        "timeout_ms": 10000
+      },
+      "json_body": {
+        "amount": 1,
+        "source_player_id": "{{playerId}}",
+        "weapon_item_id": "axe-01"
+      }
+    },
+    {
+      "name": "Resource create pool",
+      "source": "world-service",
+      "rpc": "pad.broker.v1.MessageBroker/Call",
+      "expected_reply_status": 201,
+      "message": {
+        "topic": "commands.resource",
+        "method": "POST",
+        "path": "/api/v1/pools",
+        "timeout_ms": 10000
+      },
+      "json_body": {
+        "lobby_id": "{{lobbyId}}",
+        "room_id": "{{roomId}}",
+        "node_id": "{{$guid}}",
+        "kind": "node",
+        "initial_stock": [
+          {
+            "item_id": "wood-01",
+            "count": 5
+          }
+        ]
+      }
+    },
+    {
+      "name": "Resource gather real materials",
+      "source": "game-service",
+      "rpc": "pad.broker.v1.MessageBroker/Call",
+      "expected_reply_status": 200,
+      "message": {
+        "topic": "commands.resource",
+        "method": "POST",
+        "path": "/api/v1/transactions/gather",
+        "timeout_ms": 10000
+      },
+      "json_body": {
+        "lobby_id": "{{lobbyId}}",
+        "player_id": "{{playerId}}",
+        "source_pool_id": "{{sourcePoolId}}",
+        "items": [
+          {
+            "item_id": "wood-01",
+            "count": 1
+          }
+        ],
+        "reason": "postman-grpc",
+        "action_id": "{{$guid}}"
+      }
+    },
+    {
+      "name": "Base internal blueprints",
+      "source": "crafting-service",
+      "rpc": "pad.broker.v1.MessageBroker/Call",
+      "expected_reply_status": 200,
+      "message": {
+        "topic": "commands.base",
+        "method": "GET",
+        "path": "/api/v1/bases/{{baseId}}/blueprints",
+        "timeout_ms": 10000
+      },
+      "json_body": null
+    },
+    {
+      "name": "Crafting internal catalogue",
+      "source": "game-service",
+      "rpc": "pad.broker.v1.MessageBroker/Call",
+      "expected_reply_status": 200,
+      "message": {
+        "topic": "commands.crafting",
+        "method": "GET",
+        "path": "/api/v1/recipes",
+        "timeout_ms": 10000
+      },
+      "json_body": null
+    }
+  ]
+}
