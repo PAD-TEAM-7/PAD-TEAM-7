@@ -1,0 +1,342 @@
+{
+  "info": {
+    "name": "PAD Lab 4 - message-broker",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Current Lab 4 deployment (Gateway 28080, Broker 28601, Discovery 28500). FIRST run scripts/lab4-prepare-postman.py and import its PRIVATE environment. Run folders in order. Regenerate fixtures before repeating a collection. All requests assert their expected status. Removed service-only Gateway routes deliberately expect 404. Native gRPC examples: postman/grpc/README.md. Never export real environment credentials into Git."
+  },
+  "variable": [
+    {
+      "key": "gateway",
+      "value": "http://localhost:28080"
+    },
+    {
+      "key": "broker",
+      "value": "http://localhost:28601"
+    },
+    {
+      "key": "discovery",
+      "value": "http://localhost:28500"
+    }
+  ],
+  "item": [
+    {
+      "name": "message-broker",
+      "item": [
+        {
+          "name": "01 Broker health",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{broker}}/health",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 Topics and interested subscriber groups",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{brokerAdminToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{broker}}/v1/topics",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Command topics for all eight services\", () => { const names = pm.response.json().topics.map(t => t.name); [\"player\",\"game\",\"exam\",\"world\",\"zombie\",\"resource\",\"base\",\"crafting\"].forEach(s => pm.expect(names).to.include(\"commands.\" + s)); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 Durable queues",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{brokerAdminToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{broker}}/v1/queues",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "04 Dead letter metadata",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{brokerAdminToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{broker}}/v1/dead-letters",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Dead letter list\", () => pm.expect(pm.response.json().dead_letters).to.be.an(\"array\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "05 Download ZIP logs - Send and Download",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{brokerAdminToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{broker}}/v1/logs/download",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"ZIP file\", () => pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/zip\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "06 Metrics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{broker}}/metrics",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Thread-per-request metric\", () => pm.expect(pm.response.text()).to.include(\"broker_rpc_threads_started_total\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "07 Operator token is required",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{broker}}/v1/topics",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 401\", () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "08 Unknown dead letter cannot replay",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{brokerAdminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{broker}}/v1/dead-letters/00000000-0000-4000-8000-000000000000/replay",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "09 Unknown instance cannot restore",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{brokerAdminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{broker}}/v1/instances/00000000-0000-4000-8000-000000000000/restore",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

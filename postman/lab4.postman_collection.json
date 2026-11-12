@@ -1,75 +1,36 @@
 {
   "info": {
-    "name": "PAD Team 7: Lab 4 broker and user API",
+    "name": "PAD Lab 4 - complete team demonstration",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "description": "Run the user requests in order. PlayerRegistered delivery is asynchronous: retry the course query until enrolment appears. Fill brokerAdminToken/discoveryToken only in your local Postman environment; never export real values to Git. Internal business communication uses the shared protobuf contract over gRPC; these REST calls are user/operations APIs."
+    "description": "Current Lab 4 deployment (Gateway 28080, Broker 28601, Discovery 28500). FIRST run scripts/lab4-prepare-postman.py and import its PRIVATE environment. Run folders in order. Regenerate fixtures before repeating a collection. All requests assert their expected status. Removed service-only Gateway routes deliberately expect 404. Native gRPC examples: postman/grpc/README.md. Never export real environment credentials into Git."
   },
   "variable": [
     {
       "key": "gateway",
-      "value": "http://localhost:28080",
-      "type": "string"
+      "value": "http://localhost:28080"
     },
     {
       "key": "broker",
-      "value": "http://localhost:28601",
-      "type": "string"
+      "value": "http://localhost:28601"
     },
     {
       "key": "discovery",
-      "value": "http://localhost:28500",
-      "type": "string"
-    },
-    {
-      "key": "brokerAdminToken",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "discoveryToken",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "playerToken",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "playerId",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "lobbyId",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "demoUsername",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "demoEmail",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "demoPassword",
-      "value": "",
-      "type": "string"
+      "value": "http://localhost:28500"
     }
   ],
   "item": [
     {
-      "name": "User flow through native gRPC broker",
+      "name": "player",
       "item": [
         {
-          "name": "1 Register a fresh demo player",
+          "name": "01 Register a fresh additional player",
           "request": {
             "method": "POST",
             "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
               {
                 "key": "Content-Type",
                 "value": "application/json"
@@ -79,10 +40,14 @@
                 "value": "{{$guid}}"
               }
             ],
+            "auth": {
+              "type": "noauth"
+            },
             "url": "{{gateway}}/api/v1/players/register",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"username\": \"{{demoUsername}}\",\n  \"email\": \"{{demoEmail}}\",\n  \"password\": \"{{demoPassword}}\"\n}",
+              "raw": "{\n  \"username\": \"{{newUsername}}\",\n  \"email\": \"{{newEmail}}\",\n  \"password\": \"{{newPassword}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -96,10 +61,10 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "const suffix = Date.now().toString();",
-                  "pm.collectionVariables.set(\"demoUsername\", \"lab4_\" + suffix);",
-                  "pm.collectionVariables.set(\"demoEmail\", \"lab4_\" + suffix + \"@demo.invalid\");",
-                  "pm.collectionVariables.set(\"demoPassword\", \"Demo_\" + pm.variables.replaceIn(\"{{$guid}}\") + \"A9!\");"
+                  "const id = pm.variables.replaceIn(\"{{$guid}}\").replace(/-/g, \"\");",
+                  "pm.environment.set(\"newUsername\", \"pm_\" + id.slice(0, 12));",
+                  "pm.environment.set(\"newEmail\", id + \"@postman.invalid\");",
+                  "pm.environment.set(\"newPassword\", \"Demo_\" + id + \"A9!\");"
                 ]
               }
             },
@@ -108,18 +73,25 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Created\", () => pm.response.to.have.status(201));",
-                  "if (pm.response.code === 201) pm.collectionVariables.set(\"playerId\", pm.response.json().player_id);"
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) { const data = pm.response.json();",
+                  "pm.test(\"newPlayerId returned\", () => pm.expect(data.player_id).to.be.a(\"string\").and.not.empty);",
+                  "pm.environment.set(\"newPlayerId\", data.player_id);",
+                  "}"
                 ]
               }
             }
           ]
         },
         {
-          "name": "2 Login",
+          "name": "02 Login real fixture player",
           "request": {
             "method": "POST",
             "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
               {
                 "key": "Content-Type",
                 "value": "application/json"
@@ -129,10 +101,14 @@
                 "value": "{{$guid}}"
               }
             ],
+            "auth": {
+              "type": "noauth"
+            },
             "url": "{{gateway}}/api/v1/players/login",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"{{demoEmail}}\",\n  \"password\": \"{{demoPassword}}\"\n}",
+              "raw": "{\n  \"email\": \"{{playerEmail}}\",\n  \"password\": \"{{playerPassword}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -146,44 +122,88 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Logged in\", () => pm.response.to.have.status(200));",
-                  "if (pm.response.code === 200) pm.collectionVariables.set(\"playerToken\", pm.response.json().access_token);"
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) { const data = pm.response.json();",
+                  "pm.test(\"playerToken returned\", () => pm.expect(data.access_token).to.be.a(\"string\").and.not.empty);",
+                  "pm.environment.set(\"playerToken\", data.access_token);",
+                  "pm.test(\"playerRefreshToken returned\", () => pm.expect(data.refresh_token).to.be.a(\"string\").and.not.empty);",
+                  "pm.environment.set(\"playerRefreshToken\", data.refresh_token);",
+                  "}"
                 ]
               }
             }
           ]
         },
         {
-          "name": "3 Profile through broker",
+          "name": "03 Public signing keys",
           "request": {
             "method": "GET",
             "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/auth/jwks",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"RSA keys\", () => pm.expect(pm.response.json().keys).to.be.an(\"array\").and.not.empty);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "04 Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
               {
                 "key": "Authorization",
                 "value": "Bearer {{playerToken}}"
               }
             ],
-            "url": "{{gateway}}/api/v1/players/{{playerId}}"
-          }
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/players/{{playerId}}",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
         },
         {
-          "name": "4 Courses automatically enrolled by PlayerRegistered topic",
+          "name": "05 Update own profile",
           "request": {
-            "method": "GET",
+            "method": "PATCH",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{playerToken}}"
-              }
-            ],
-            "url": "{{gateway}}/api/v1/players/{{playerId}}/courses"
-          }
-        },
-        {
-          "name": "5 Create lobby with real World and Base commands",
-          "request": {
-            "method": "POST",
-            "header": [
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
               {
                 "key": "Authorization",
                 "value": "Bearer {{playerToken}}"
@@ -197,10 +217,14 @@
                 "value": "{{$guid}}"
               }
             ],
-            "url": "{{gateway}}/api/v1/lobbies",
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/players/{{playerId}}",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Lab 4 mentor demo\",\n  \"university\": \"FAF\",\n  \"max_players\": 4\n}",
+              "raw": "{\n  \"title\": \"Lab 4 survivor\",\n  \"avatar\": \"survivor.png\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -214,161 +238,53 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Created\", () => pm.response.to.have.status(201));",
-                  "if (pm.response.code === 201) pm.collectionVariables.set(\"lobbyId\", pm.response.json().lobby_id);"
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
                 ]
               }
             }
           ]
         },
         {
-          "name": "6 Lobby state",
+          "name": "06 Inventory",
           "request": {
             "method": "GET",
             "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
               {
                 "key": "Authorization",
                 "value": "Bearer {{playerToken}}"
               }
             ],
-            "url": "{{gateway}}/api/v1/lobbies/{{lobbyId}}"
-          }
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/players/{{playerId}}/inventory",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
         },
         {
-          "name": "7 World map",
+          "name": "07 Set presence",
           "request": {
-            "method": "GET",
+            "method": "PUT",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{playerToken}}"
-              }
-            ],
-            "url": "{{gateway}}/api/v1/worlds/{{lobbyId}}"
-          }
-        },
-        {
-          "name": "8 Recipe catalogue",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{playerToken}}"
-              }
-            ],
-            "url": "{{gateway}}/api/v1/recipes"
-          }
-        },
-        {
-          "name": "9 WebSocket owner negotiation",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{playerToken}}"
-              }
-            ],
-            "url": "{{gateway}}/ws/v1/lobbies/{{lobbyId}}"
-          }
-        }
-      ]
-    },
-    {
-      "name": "Authenticated broker operations",
-      "item": [
-        {
-          "name": "Broker liveness",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{broker}}/health"
-          }
-        },
-        {
-          "name": "Interested topics and subscriber groups",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{brokerAdminToken}}"
-              }
-            ],
-            "url": "{{broker}}/v1/topics"
-          }
-        },
-        {
-          "name": "Durable queue counts",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{brokerAdminToken}}"
-              }
-            ],
-            "url": "{{broker}}/v1/queues"
-          }
-        },
-        {
-          "name": "Dead letter metadata",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{brokerAdminToken}}"
-              }
-            ],
-            "url": "{{broker}}/v1/dead-letters"
-          }
-        },
-        {
-          "name": "Download system logs ? Send and Download ZIP",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{brokerAdminToken}}"
-              }
-            ],
-            "url": "{{broker}}/v1/logs/download"
-          }
-        },
-        {
-          "name": "Real broker Prometheus metrics",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{broker}}/metrics"
-          }
-        },
-        {
-          "name": "Registered gRPC replicas, load and topics",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{discoveryToken}}"
-              }
-            ],
-            "url": "{{discovery}}/v1/instances"
-          }
-        }
-      ]
-    },
-    {
-      "name": "Gateway surface checks",
-      "item": [
-        {
-          "name": "Internal REST prefix is removed",
-          "request": {
-            "method": "POST",
-            "header": [
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
               {
                 "key": "Authorization",
                 "value": "Bearer {{playerToken}}"
@@ -382,10 +298,14 @@
                 "value": "{{$guid}}"
               }
             ],
-            "url": "{{gateway}}/world-service/api/v1/events",
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/players/{{playerId}}/presence",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
             "body": {
               "mode": "raw",
-              "raw": "{}",
+              "raw": "{\n  \"status\": \"online\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -399,17 +319,21 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Internal route is absent\", () => pm.response.to.have.status(404));"
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Service-only XP route is removed",
+          "name": "08 Add real friend",
           "request": {
             "method": "POST",
             "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
               {
                 "key": "Authorization",
                 "value": "Bearer {{playerToken}}"
@@ -423,7 +347,207 @@
                 "value": "{{$guid}}"
               }
             ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/players/{{playerId}}/friends",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"friend_id\": \"{{otherPlayerId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "09 List friends",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/players/{{playerId}}/friends",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "10 Remove friend",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/players/{{playerId}}/friends/{{otherPlayerId}}",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "11 Refresh real session",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/players/refresh",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh_token\": \"{{playerRefreshToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) { const data = pm.response.json();",
+                  "pm.test(\"playerToken returned\", () => pm.expect(data.access_token).to.be.a(\"string\").and.not.empty);",
+                  "pm.environment.set(\"playerToken\", data.access_token);",
+                  "pm.test(\"playerRefreshToken returned\", () => pm.expect(data.refresh_token).to.be.a(\"string\").and.not.empty);",
+                  "pm.environment.set(\"playerRefreshToken\", data.refresh_token);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "12 Protected profile without token",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/players/{{playerId}}",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 401\", () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "XP is service-only (removed: 404)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
             "url": "{{gateway}}/api/v1/players/{{playerId}}/xp",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"amount\": 1\n}",
@@ -440,7 +564,3825 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Internal route is absent\", () => pm.response.to.have.status(404));"
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Gateway removed route\", () => pm.expect(pm.response.json().error.code).to.eql(\"ROUTE_NOT_FOUND\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Inventory mutation is service-only (removed: 404)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/players/{{playerId}}/inventory",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Gateway removed route\", () => pm.expect(pm.response.json().error.code).to.eql(\"ROUTE_NOT_FOUND\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Development tokens are disabled (removed: 404)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/dev/tokens",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Gateway removed route\", () => pm.expect(pm.response.json().error.code).to.eql(\"ROUTE_NOT_FOUND\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "game",
+      "item": [
+        {
+          "name": "01 List lobbies",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/lobbies?university=FAF",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 Create additional real World/Base lobby",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/lobbies",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman extra lobby\",\n  \"university\": \"FAF\",\n  \"max_players\": 8\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) { const data = pm.response.json();",
+                  "pm.test(\"extraLobbyId returned\", () => pm.expect(data.lobby_id).to.be.a(\"string\").and.not.empty);",
+                  "pm.environment.set(\"extraLobbyId\", data.lobby_id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 Read prepared lobby",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/lobbies/{{lobbyId}}",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "04 Other player joins",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{otherPlayerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/lobbies/{{lobbyId}}/join",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"player_id\": \"{{otherPlayerId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "05 Start real gather action",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/lobbies/{{lobbyId}}/actions",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action_type\": \"chop_bench\",\n  \"target_room_id\": \"{{nodeRoomId}}\",\n  \"target_node_id\": \"{{nodeId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 202\", () => pm.response.to.have.status(202));",
+                  "if (pm.response.code === 202) { const data = pm.response.json();",
+                  "pm.test(\"actionId returned\", () => pm.expect(data.action_id).to.be.a(\"string\").and.not.empty);",
+                  "pm.environment.set(\"actionId\", data.action_id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "06 Read action",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/actions/{{actionId}}",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "07 Cancel a missing action - conflict",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/actions/00000000-0000-4000-8000-000000000000",
+            "description": "Current Game contract returns conflict when no running action can be cancelled. For a successful cancel, immediately DELETE /api/v1/actions/{{actionId}} after request 05 (before its six-second demo duration), expecting 204."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "08 Offer an inventory-backed trade",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/lobbies/{{lobbyId}}/trades",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"to_player_id\": \"{{otherPlayerId}}\",\n  \"offer\": [\n    {\n      \"item_id\": \"axe-01\",\n      \"count\": 1\n    }\n  ],\n  \"request\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) { const data = pm.response.json();",
+                  "pm.test(\"tradeId returned\", () => pm.expect(data.trade_id).to.be.a(\"string\").and.not.empty);",
+                  "pm.environment.set(\"tradeId\", data.trade_id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "09 Recipient declines trade",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{otherPlayerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/trades/{{tradeId}}/respond",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"decision\": \"decline\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "10 WebSocket owner negotiation",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/ws/v1/lobbies/{{lobbyId}}",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Direct WebSocket URL\", () => pm.expect(pm.response.json().url).to.match(/^wss?:/));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "11 Other player leaves",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{otherPlayerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/lobbies/{{lobbyId}}/leave",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cycle commands use Broker (removed: 404)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/lobbies/{{lobbyId}}/cycle",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Gateway removed route\", () => pm.expect(pm.response.json().error.code).to.eql(\"ROUTE_NOT_FOUND\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Encounters use Broker (removed: 404)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/lobbies/{{lobbyId}}/encounters",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Gateway removed route\", () => pm.expect(pm.response.json().error.code).to.eql(\"ROUTE_NOT_FOUND\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "exam",
+      "item": [
+        {
+          "name": "01 Course catalogue",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/courses",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 Courses enrolled by PlayerRegistered topic",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/players/{{playerId}}/courses",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Real asynchronous enrolment\", () => pm.expect(pm.response.json().items).to.be.an(\"array\").and.not.empty);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 Read prepared exam",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/exams/{{examId}}",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Ten questions\", () => pm.expect(pm.response.json().questions).to.have.lengthOf(10));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "04 Save answer",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/exams/{{examId}}/answers",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"question_id\": \"{{questionId}}\",\n  \"option_index\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "05 Submit exam",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{examSubmitKey}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/exams/{{examId}}/submit",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.environment.set(\"examSubmitKey\", pm.variables.replaceIn(\"{{$guid}}\"));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.environment.set(\"examSubmitResult\", JSON.stringify(pm.response.json()));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "06 Replay submit - identical outcome",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{examSubmitKey}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/exams/{{examId}}/submit",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Exactly same submit result\", () => pm.expect(JSON.stringify(pm.response.json())).to.eql(pm.environment.get(\"examSubmitResult\")));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "07 Exam history",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/players/{{playerId}}/exams?limit=10",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "08 Achievements",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/players/{{playerId}}/achievements",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "09 Diploma progress",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/players/{{playerId}}/diploma",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "10 Other player cannot view this exam",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{otherPlayerToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/exams/{{examId}}",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Issue exam is service-only (removed: 404)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/exams",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Gateway removed route\", () => pm.expect(pm.response.json().error.code).to.eql(\"ROUTE_NOT_FOUND\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Internal passed-course lookup (removed: 404)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/players/{{playerId}}/passed",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Gateway removed route\", () => pm.expect(pm.response.json().error.code).to.eql(\"ROUTE_NOT_FOUND\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "world",
+      "item": [
+        {
+          "name": "01 Generated map",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/worlds/{{lobbyId}}",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 Wing unlock state",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/worlds/{{lobbyId}}/wings",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 Rooms",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/worlds/{{lobbyId}}/rooms",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "04 Room detail",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/rooms/{{roomId}}",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "05 Missing world",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/worlds/00000000-0000-4000-8000-000000000000",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Generation is service-only (removed: 404)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/worlds",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Gateway removed route\", () => pm.expect(pm.response.json().error.code).to.eql(\"ROUTE_NOT_FOUND\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Nodes use Broker gRPC (removed: 404)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/worlds/{{lobbyId}}/nodes",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Gateway removed route\", () => pm.expect(pm.response.json().error.code).to.eql(\"ROUTE_NOT_FOUND\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Spawns use Broker gRPC (removed: 404)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/worlds/{{lobbyId}}/spawns",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Gateway removed route\", () => pm.expect(pm.response.json().error.code).to.eql(\"ROUTE_NOT_FOUND\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Unlock uses Broker (removed: 404)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/worlds/{{lobbyId}}/unlock",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Gateway removed route\", () => pm.expect(pm.response.json().error.code).to.eql(\"ROUTE_NOT_FOUND\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Room mutation uses Broker (removed: 404)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/rooms/{{roomId}}",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"safe\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Gateway removed route\", () => pm.expect(pm.response.json().error.code).to.eql(\"ROUTE_NOT_FOUND\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "zombie",
+      "item": [
+        {
+          "name": "01 Zombie type catalogue",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/zombie-types",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) { const data = pm.response.json();",
+                  "pm.test(\"zombieTypeId returned\", () => pm.expect(data.items[0].type_id).to.be.a(\"string\").and.not.empty);",
+                  "pm.environment.set(\"zombieTypeId\", data.items[0].type_id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 Zombie type details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/zombie-types/{{zombieTypeId}}",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Spawn uses Broker (removed: 404)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/zombies",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Gateway removed route\", () => pm.expect(pm.response.json().error.code).to.eql(\"ROUTE_NOT_FOUND\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Damage uses Broker (removed: 404)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/zombies/00000000-0000-4000-8000-000000000000/damage",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Gateway removed route\", () => pm.expect(pm.response.json().error.code).to.eql(\"ROUTE_NOT_FOUND\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Kill uses Broker (removed: 404)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/zombies/00000000-0000-4000-8000-000000000000/kill",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Gateway removed route\", () => pm.expect(pm.response.json().error.code).to.eql(\"ROUTE_NOT_FOUND\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Steal uses Broker (removed: 404)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/zombies/00000000-0000-4000-8000-000000000000/steal",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Gateway removed route\", () => pm.expect(pm.response.json().error.code).to.eql(\"ROUTE_NOT_FOUND\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "resource",
+      "item": [
+        {
+          "name": "01 Real lobby-scoped balances",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/players/{{playerId}}/resources?lobby_id={{lobbyId}}",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Real balances\", () => pm.expect(pm.response.json().resources).to.be.an(\"array\").and.not.empty);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 Balances require player authentication",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/players/{{playerId}}/resources?lobby_id={{lobbyId}}",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 401\", () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Pools are service-only (removed: 404)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/pools",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Gateway removed route\", () => pm.expect(pm.response.json().error.code).to.eql(\"ROUTE_NOT_FOUND\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Gather uses Broker (removed: 404)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/transactions/gather",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Gateway removed route\", () => pm.expect(pm.response.json().error.code).to.eql(\"ROUTE_NOT_FOUND\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Consume uses Broker (removed: 404)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/transactions/consume",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Gateway removed route\", () => pm.expect(pm.response.json().error.code).to.eql(\"ROUTE_NOT_FOUND\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Transfer uses Broker (removed: 404)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/transactions/transfer",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Gateway removed route\", () => pm.expect(pm.response.json().error.code).to.eql(\"ROUTE_NOT_FOUND\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Compensation uses Broker (removed: 404)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/transactions/00000000-0000-4000-8000-000000000000/compensate",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Gateway removed route\", () => pm.expect(pm.response.json().error.code).to.eql(\"ROUTE_NOT_FOUND\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "base",
+      "item": [
+        {
+          "name": "01 Find base by lobby",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/bases?lobby_id={{lobbyId}}",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 Base state",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/bases/{{baseId}}",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 Facilities",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/bases/{{baseId}}/facilities",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "04 Barricades",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/bases/{{baseId}}/barricades",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "05 Kiki state inside base response",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/bases/{{baseId}}",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Kiki state is included\", () => pm.expect(pm.response.json().kiki.present).to.eql(true));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "06 Upgrade using real Resource materials",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{baseUpgradeKey}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/bases/{{baseId}}/upgrade",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"player_id\": \"{{playerId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.environment.set(\"baseUpgradeKey\", pm.variables.replaceIn(\"{{$guid}}\"));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Level two\", () => pm.expect(pm.response.json().level).to.eql(2));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "07 Replay upgrade - no second upgrade",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{baseUpgradeKey}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/bases/{{baseId}}/upgrade",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"player_id\": \"{{playerId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Still level two\", () => pm.expect(pm.response.json().level).to.eql(2));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "08 Build workbench",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/bases/{{baseId}}/facilities",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"player_id\": \"{{playerId}}\",\n  \"type\": \"workbench\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "09 Build in a real room",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/bases/{{baseId}}/barricades",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"player_id\": \"{{playerId}}\",\n  \"room_id\": \"{{buildRoomId}}\",\n  \"material\": \"wood\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "10 Repair prepared damaged barricade",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/barricades/{{repairBarricadeId}}",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"operation\": \"repair\",\n  \"player_id\": \"{{playerId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Health restored\", () => pm.expect(pm.response.json().health).to.eql(pm.response.json().strength));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Base creation is service-only (removed: 404)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/bases",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Gateway removed route\", () => pm.expect(pm.response.json().error.code).to.eql(\"ROUTE_NOT_FOUND\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Blueprint route is absent from current public surface (removed: 404)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/bases/{{baseId}}/blueprints",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Gateway removed route\", () => pm.expect(pm.response.json().error.code).to.eql(\"ROUTE_NOT_FOUND\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "crafting",
+      "item": [
+        {
+          "name": "01 Recipe catalogue",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/recipes",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 Filter recipes",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/recipes?category=defense",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 Recipe detail",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/recipes/recipe-barricade-kit",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "04 Available recipes - known service regression",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/recipes/available?player_id={{playerId}}&lobby_id={{lobbyId}}&base_id={{baseId}}",
+            "description": "Expected 200. Current release fails: Crafting requests Player profile with a service identity (403) and World /api/v1/wings?lobby_id=... (404; current World API is /api/v1/worlds/{lobbyId}/wings with player auth). Keep this assertion failing until the service integration is fixed; do not treat 403/404 as success."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "05 Preview verifies real Resource balances",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/recipes/recipe-barricade-kit/preview",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"player_id\": \"{{playerId}}\",\n  \"lobby_id\": \"{{lobbyId}}\",\n  \"base_id\": \"{{baseId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Real materials verified\", () => pm.expect(pm.response.json().materials_verified).to.eql(true));",
+                  "pm.test(\"Craftable\", () => pm.expect(pm.response.json().craftable).to.eql(true));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "06 Craft with real consumption and Player reward",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{craftKey}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/crafts",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"player_id\": \"{{playerId}}\",\n  \"lobby_id\": \"{{lobbyId}}\",\n  \"base_id\": \"{{baseId}}\",\n  \"recipe_id\": \"recipe-barricade-kit\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.environment.set(\"craftKey\", pm.variables.replaceIn(\"{{$guid}}\"));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) { const data = pm.response.json();",
+                  "pm.test(\"jobId returned\", () => pm.expect(data.job_id).to.be.a(\"string\").and.not.empty);",
+                  "pm.environment.set(\"jobId\", data.job_id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "07 Replay craft - same job",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{craftKey}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/crafts",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"player_id\": \"{{playerId}}\",\n  \"lobby_id\": \"{{lobbyId}}\",\n  \"base_id\": \"{{baseId}}\",\n  \"recipe_id\": \"recipe-barricade-kit\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"Same job\", () => pm.expect(pm.response.json().job_id).to.eql(pm.environment.get(\"jobId\")));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "08 Job state",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/crafts/{{jobId}}",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "09 Craft history",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/crafts?player_id={{playerId}}&limit=10",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "10 Another player's history is forbidden",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/crafts?player_id={{otherPlayerId}}",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "11 Unknown recipe",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/recipes/recipe-missing",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "gateway",
+      "item": [
+        {
+          "name": "01 Gateway health",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/health",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 Gateway status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/status",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 Player through subscriber queue",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/players/{{playerId}}",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Old service prefix (removed: 404)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/player-service/api/v1/health",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Gateway removed route\", () => pm.expect(pm.response.json().error.code).to.eql(\"ROUTE_NOT_FOUND\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Service-only events (removed: 404)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/world-service/api/v1/events",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Gateway removed route\", () => pm.expect(pm.response.json().error.code).to.eql(\"ROUTE_NOT_FOUND\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Old upstream management (removed: 404)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/health/upstreams",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Gateway removed route\", () => pm.expect(pm.response.json().error.code).to.eql(\"ROUTE_NOT_FOUND\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Old routing table (removed: 404)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/gateway/routes",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Gateway removed route\", () => pm.expect(pm.response.json().error.code).to.eql(\"ROUTE_NOT_FOUND\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Development service token issuer (removed: 404)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/gateway/dev/tokens",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Gateway removed route\", () => pm.expect(pm.response.json().error.code).to.eql(\"ROUTE_NOT_FOUND\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "message-broker",
+      "item": [
+        {
+          "name": "01 Broker health",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{broker}}/health",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 Topics and interested subscriber groups",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{brokerAdminToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{broker}}/v1/topics",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Command topics for all eight services\", () => { const names = pm.response.json().topics.map(t => t.name); [\"player\",\"game\",\"exam\",\"world\",\"zombie\",\"resource\",\"base\",\"crafting\"].forEach(s => pm.expect(names).to.include(\"commands.\" + s)); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 Durable queues",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{brokerAdminToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{broker}}/v1/queues",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "04 Dead letter metadata",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{brokerAdminToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{broker}}/v1/dead-letters",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Dead letter list\", () => pm.expect(pm.response.json().dead_letters).to.be.an(\"array\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "05 Download ZIP logs - Send and Download",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{brokerAdminToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{broker}}/v1/logs/download",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"ZIP file\", () => pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/zip\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "06 Metrics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{broker}}/metrics",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Thread-per-request metric\", () => pm.expect(pm.response.text()).to.include(\"broker_rpc_threads_started_total\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "07 Operator token is required",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{broker}}/v1/topics",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 401\", () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "08 Unknown dead letter cannot replay",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{brokerAdminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{broker}}/v1/dead-letters/00000000-0000-4000-8000-000000000000/replay",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "09 Unknown instance cannot restore",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{brokerAdminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{broker}}/v1/instances/00000000-0000-4000-8000-000000000000/restore",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "service-discovery",
+      "item": [
+        {
+          "name": "01 Discovery health",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{discovery}}/health",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 gRPC replicas, real load and subscriptions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{discoveryToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{discovery}}/v1/instances",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"All eight services registered with gRPC and topics\", () => { const rows = pm.response.json().instances.filter(i => i.healthy && i.lease_valid && !i.removed); [\"player\",\"game\",\"exam\",\"world\",\"zombie\",\"resource\",\"base\",\"crafting\"].forEach(s => { const replicas = rows.filter(i => i.service === s + \"-service\"); pm.expect(replicas.length).to.be.at.least(2); replicas.forEach(i => { pm.expect(i.grpc_url).to.be.a(\"string\").and.not.empty; pm.expect(i.topics).to.include(\"commands.\" + s); }); }); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 Registered topic interests",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{discoveryToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{discovery}}/v1/topics",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "04 Eligible Base replica",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{discoveryToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{discovery}}/v1/select/base-service",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "05 Discovery token is required",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{discovery}}/v1/instances",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 401\", () => pm.response.to.have.status(401));"
                 ]
               }
             }

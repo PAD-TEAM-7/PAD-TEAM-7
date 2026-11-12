@@ -1,0 +1,181 @@
+{
+  "info": {
+    "name": "PAD Lab 4 - service-discovery",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Current Lab 4 deployment (Gateway 28080, Broker 28601, Discovery 28500). FIRST run scripts/lab4-prepare-postman.py and import its PRIVATE environment. Run folders in order. Regenerate fixtures before repeating a collection. All requests assert their expected status. Removed service-only Gateway routes deliberately expect 404. Native gRPC examples: postman/grpc/README.md. Never export real environment credentials into Git."
+  },
+  "variable": [
+    {
+      "key": "gateway",
+      "value": "http://localhost:28080"
+    },
+    {
+      "key": "broker",
+      "value": "http://localhost:28601"
+    },
+    {
+      "key": "discovery",
+      "value": "http://localhost:28500"
+    }
+  ],
+  "item": [
+    {
+      "name": "service-discovery",
+      "item": [
+        {
+          "name": "01 Discovery health",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{discovery}}/health",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 gRPC replicas, real load and subscriptions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{discoveryToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{discovery}}/v1/instances",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"All eight services registered with gRPC and topics\", () => { const rows = pm.response.json().instances.filter(i => i.healthy && i.lease_valid && !i.removed); [\"player\",\"game\",\"exam\",\"world\",\"zombie\",\"resource\",\"base\",\"crafting\"].forEach(s => { const replicas = rows.filter(i => i.service === s + \"-service\"); pm.expect(replicas.length).to.be.at.least(2); replicas.forEach(i => { pm.expect(i.grpc_url).to.be.a(\"string\").and.not.empty; pm.expect(i.topics).to.include(\"commands.\" + s); }); }); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 Registered topic interests",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{discoveryToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{discovery}}/v1/topics",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "04 Eligible Base replica",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{discoveryToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{discovery}}/v1/select/base-service",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "05 Discovery token is required",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{discovery}}/v1/instances",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 401\", () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

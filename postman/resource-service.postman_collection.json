@@ -1,19 +1,339 @@
 {
-  "info": {"name": "PAD TEAM 7 - Resource Service", "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"},
+  "info": {
+    "name": "PAD Lab 4 - resource-service",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Current Lab 4 deployment (Gateway 28080, Broker 28601, Discovery 28500). FIRST run scripts/lab4-prepare-postman.py and import its PRIVATE environment. Run folders in order. Regenerate fixtures before repeating a collection. All requests assert their expected status. Removed service-only Gateway routes deliberately expect 404. Native gRPC examples: postman/grpc/README.md. Never export real environment credentials into Git."
+  },
   "variable": [
-    {"key":"baseUrl","value":"http://localhost:8080/resource-service"}, {"key":"token","value":""},
-    {"key":"lobbyId","value":""}, {"key":"playerId","value":""}, {"key":"sourcePoolId","value":""},
-    {"key":"targetPoolId","value":""}, {"key":"gatherKey","value":""}, {"key":"consumeTxId","value":""}
+    {
+      "key": "gateway",
+      "value": "http://localhost:28080"
+    },
+    {
+      "key": "broker",
+      "value": "http://localhost:28601"
+    },
+    {
+      "key": "discovery",
+      "value": "http://localhost:28500"
+    }
   ],
   "item": [
-    {"name":"Health","request":{"method":"GET","url":"{{baseUrl}}/api/v1/health"},"event":[{"listen":"test","script":{"exec":["pm.test('status 200',()=>pm.response.to.have.status(200));"]}}]},
-    {"name":"Service token","event":[{"listen":"prerequest","script":{"exec":["pm.collectionVariables.set('lobbyId',pm.variables.replaceIn('{{$guid}}'));","pm.collectionVariables.set('playerId',pm.variables.replaceIn('{{$guid}}'));","pm.collectionVariables.set('gatherKey',pm.variables.replaceIn('{{$guid}}'));"]}},{"listen":"test","script":{"exec":["pm.test('status 201',()=>pm.response.to.have.status(201));","pm.collectionVariables.set('token',pm.response.json().access_token);"]}}],"request":{"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\"subject\":\"postman\",\"role\":\"service\"}"},"url":"{{baseUrl}}/api/v1/dev/tokens"}},
-    {"name":"Create source pool","event":[{"listen":"test","script":{"exec":["pm.test('status 201',()=>pm.response.to.have.status(201));","pm.collectionVariables.set('sourcePoolId',pm.response.json().pool_id);"]}}],"request":{"method":"POST","header":[{"key":"Authorization","value":"Bearer {{token}}"},{"key":"Idempotency-Key","value":"{{$guid}}"},{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\"lobby_id\":\"{{lobbyId}}\",\"room_id\":\"lab-204\",\"node_id\":\"node-{{$guid}}\",\"kind\":\"node\",\"initial_stock\":[{\"item_id\":\"metal-01\",\"count\":15},{\"item_id\":\"wood-01\",\"count\":20}]}"},"url":"{{baseUrl}}/api/v1/pools"}},
-    {"name":"Create target pool","event":[{"listen":"test","script":{"exec":["pm.test('status 201',()=>pm.response.to.have.status(201));","pm.collectionVariables.set('targetPoolId',pm.response.json().pool_id);"]}}],"request":{"method":"POST","header":[{"key":"Authorization","value":"Bearer {{token}}"},{"key":"Idempotency-Key","value":"{{$guid}}"},{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\"lobby_id\":\"{{lobbyId}}\",\"room_id\":\"storage\",\"node_id\":\"store-{{$guid}}\",\"kind\":\"lobby\",\"initial_stock\":[]}"},"url":"{{baseUrl}}/api/v1/pools"}},
-    {"name":"Gather","event":[{"listen":"test","script":{"exec":["pm.test('status 200',()=>pm.response.to.have.status(200));","pm.test('credited',()=>pm.expect(pm.response.json().player_balance).to.have.length(2));"]}}],"request":{"method":"POST","header":[{"key":"Authorization","value":"Bearer {{token}}"},{"key":"Idempotency-Key","value":"{{gatherKey}}"},{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\"lobby_id\":\"{{lobbyId}}\",\"player_id\":\"{{playerId}}\",\"source_pool_id\":\"{{sourcePoolId}}\",\"items\":[{\"item_id\":\"metal-01\",\"count\":5},{\"item_id\":\"wood-01\",\"count\":10}],\"reason\":\"action_completed\",\"action_id\":\"action-postman\"}"},"url":"{{baseUrl}}/api/v1/transactions/gather"}},
-    {"name":"Replay gather","event":[{"listen":"test","script":{"exec":["pm.test('status 200',()=>pm.response.to.have.status(200));","pm.test('replayed',()=>pm.expect(pm.response.json().replayed).to.eql(true));"]}}],"request":{"method":"POST","header":[{"key":"Authorization","value":"Bearer {{token}}"},{"key":"Idempotency-Key","value":"{{gatherKey}}"},{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\"lobby_id\":\"{{lobbyId}}\",\"player_id\":\"{{playerId}}\",\"source_pool_id\":\"{{sourcePoolId}}\",\"items\":[{\"item_id\":\"metal-01\",\"count\":5},{\"item_id\":\"wood-01\",\"count\":10}],\"reason\":\"action_completed\",\"action_id\":\"action-postman\"}"},"url":"{{baseUrl}}/api/v1/transactions/gather"}},
-    {"name":"Consume","event":[{"listen":"test","script":{"exec":["pm.test('status 200',()=>pm.response.to.have.status(200));","pm.collectionVariables.set('consumeTxId',pm.response.json().transaction_id);"]}}],"request":{"method":"POST","header":[{"key":"Authorization","value":"Bearer {{token}}"},{"key":"Idempotency-Key","value":"{{$guid}}"},{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\"lobby_id\":\"{{lobbyId}}\",\"player_id\":\"{{playerId}}\",\"items\":[{\"item_id\":\"wood-01\",\"count\":4},{\"item_id\":\"metal-01\",\"count\":2}],\"reason\":\"craft\",\"reference_id\":\"craft-postman\"}"},"url":"{{baseUrl}}/api/v1/transactions/consume"}},
-    {"name":"Compensate","event":[{"listen":"test","script":{"exec":["pm.test('status 200',()=>pm.response.to.have.status(200));","pm.test('compensated',()=>pm.expect(pm.response.json().status).to.eql('compensated'));"]}}],"request":{"method":"POST","header":[{"key":"Authorization","value":"Bearer {{token}}"},{"key":"Idempotency-Key","value":"{{$guid}}"},{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\"reason\":\"delivery_failed\"}"},"url":"{{baseUrl}}/api/v1/transactions/{{consumeTxId}}/compensate"}},
-    {"name":"Transfer","event":[{"listen":"test","script":{"exec":["pm.test('status 200',()=>pm.response.to.have.status(200));","pm.test('moved three',()=>pm.expect(pm.response.json().items_moved[0].count).to.eql(3));"]}}],"request":{"method":"POST","header":[{"key":"Authorization","value":"Bearer {{token}}"},{"key":"Idempotency-Key","value":"{{$guid}}"},{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\"from_pool_id\":\"{{sourcePoolId}}\",\"to_pool_id\":\"{{targetPoolId}}\",\"items\":[{\"item_id\":\"metal-01\",\"count\":3}],\"reason\":\"zombie_theft\"}"},"url":"{{baseUrl}}/api/v1/transactions/transfer"}}
+    {
+      "name": "resource-service",
+      "item": [
+        {
+          "name": "01 Real lobby-scoped balances",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/players/{{playerId}}/resources?lobby_id={{lobbyId}}",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Real balances\", () => pm.expect(pm.response.json().resources).to.be.an(\"array\").and.not.empty);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 Balances require player authentication",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/players/{{playerId}}/resources?lobby_id={{lobbyId}}",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 401\", () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Pools are service-only (removed: 404)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/pools",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Gateway removed route\", () => pm.expect(pm.response.json().error.code).to.eql(\"ROUTE_NOT_FOUND\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Gather uses Broker (removed: 404)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/transactions/gather",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Gateway removed route\", () => pm.expect(pm.response.json().error.code).to.eql(\"ROUTE_NOT_FOUND\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Consume uses Broker (removed: 404)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/transactions/consume",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Gateway removed route\", () => pm.expect(pm.response.json().error.code).to.eql(\"ROUTE_NOT_FOUND\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Transfer uses Broker (removed: 404)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/transactions/transfer",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Gateway removed route\", () => pm.expect(pm.response.json().error.code).to.eql(\"ROUTE_NOT_FOUND\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Compensation uses Broker (removed: 404)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/transactions/00000000-0000-4000-8000-000000000000/compensate",
+            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Gateway removed route\", () => pm.expect(pm.response.json().error.code).to.eql(\"ROUTE_NOT_FOUND\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
   ]
 }
