@@ -26,6 +26,8 @@ jobs:
         run: |
           python -m py_compile scripts/lab4_client.py scripts/lab4-team-smoke.py scripts/lab4-operations-smoke.py scripts/lab4-durability-smoke.py scripts/lab4-worker-fixture.py scripts/lab4-availability-smoke.py scripts/lab4_rpc/*.py
           python -m json.tool postman/lab4.postman_collection.json > /dev/null
+          python scripts/generate-lab4-postman.py --check
+          python -m py_compile scripts/generate-lab4-postman.py scripts/lab4-prepare-postman.py
           python -m json.tool deploy/monitoring/grafana/dashboards/lab4.json > /dev/null
       - name: Verify release images exist on main
         if: github.ref == 'refs/heads/main'

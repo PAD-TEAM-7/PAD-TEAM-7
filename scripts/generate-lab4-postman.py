@@ -5,6 +5,7 @@ as denied Gateway requests, with real gRPC examples alongside the collections.
 """
 import argparse
 import json
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -165,6 +166,8 @@ def build():
         request("02 Base state", "GET", b), request("03 Facilities", "GET", b + "/facilities"),
         request("04 Barricades", "GET", b + "/barricades"), request("05 Kiki state inside base response", "GET", b,
                 checks=('pm.test("Kiki state is included", () => pm.expect(pm.response.json().kiki.present).to.eql(true));',)),
+        request("05b No separate Kiki GET handler in this release", "GET", b + "/kiki", status=404,
+                description="Gateway allowlists this path, but Base only implements POST Kiki. Read Kiki state from the base object instead."),
         request("06 Upgrade using real Resource materials", "POST", b + "/upgrade", dict(player_id="{{playerId}}"),
                 key="{{baseUpgradeKey}}", before=('pm.environment.set("baseUpgradeKey", pm.variables.replaceIn("{{$guid}}"));',),
                 checks=('pm.test("Level two", () => pm.expect(pm.response.json().level).to.eql(2));',)),
@@ -275,12 +278,50 @@ def build():
     return artifacts
 
 
+def check_gateway_coverage(artifacts):
+    """When the private Gateway checkout exists, cover every allowlisted variant.
+
+    CI without private submodule credentials still checks generated-file parity.
+    Literal IDs remain regex wildcards; alternatives and optional suffixes are
+    expanded so merely covering one member of a grouped route does not suffice.
+    """
+    route_file = ROOT / "gateway-service/app/user_routes.py"
+    if not route_file.exists():
+        return
+    import runpy
+    routes = runpy.run_path(str(route_file))["USER_ROUTES"]
+    requests = [item["request"] for folder in artifacts["postman/lab4.postman_collection.json"]["item"]
+                for item in folder["item"]]
+
+    def expand(pattern):
+        # Protect the character-class + quantifier from grouping expansion.
+        match = re.search(r"\(([^()]+)\)(\?)?", pattern)
+        if not match:
+            return [pattern]
+        choices = match[1].split("|") + ([""] if match[2] else [])
+        return [result for choice in choices for result in expand(pattern[:match.start()] + choice + pattern[match.end():])]
+
+    missing = []
+    for methods, pattern in routes:
+        for method in methods.split("|"):
+            for variant in expand(pattern):
+                if not any(r["method"] == method and r["url"].startswith("{{gateway}}") and
+                           re.fullmatch(variant, r["url"].removeprefix("{{gateway}}").split("?", 1)[0])
+                           for r in requests):
+                    missing.append(method + " " + variant)
+    if missing:
+        raise SystemExit("Missing current Gateway route examples: " + ", ".join(missing))
+    print("Every current Gateway user-route method/variant has a Postman example.")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true")
     args = parser.parse_args()
     stale = []
-    for name, data in build().items():
+    artifacts = build()
+    check_gateway_coverage(artifacts)
+    for name, data in artifacts.items():
         text = json.dumps(data, indent=2, ensure_ascii=True) + "\n"
         path = ROOT / name
         if args.check:

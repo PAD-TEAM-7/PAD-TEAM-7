@@ -42,8 +42,14 @@ The [protobuf contract](contracts/broker/v1/broker.proto) can be imported into a
 Postman gRPC request. Data-plane methods are `MessageBroker.Dispatch`, `Call`,
 `Publish`, and worker `Execute`/`Deliver`. Service JWT metadata uses audience
 `message-broker`; service traffic sent through Gateway is rejected in Lab 4.
-The REST Postman collection covers public user operations and authenticated broker
-management, including ZIP log download, current topics and dead letters.
+The REST Postman collections cover all eight services' current user operations,
+Gateway and authenticated Broker/Discovery management, including ZIP logs,
+topics and dead letters. Follow [Postman setup](postman/README.md): run
+`python scripts/lab4-prepare-postman.py`, import its private environment, then
+run the combined collection or an individual service collection in order.
+Preparation uses real authenticated gRPC to create fresh demo records. Current
+native gRPC examples and a detected Crafting availability regression are
+documented alongside the collections.
 
 
 ## Lab 3: eight-service scaling
