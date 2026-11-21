@@ -19,14 +19,6 @@ services:
     image: postgres:16-alpine
     depends_on:
       warehouse: {condition: service_healthy}
-      player-db: {condition: service_healthy}
-      game-db: {condition: service_healthy}
-      exam-db: {condition: service_healthy}
-      world-db: {condition: service_healthy}
-      zombie-db: {condition: service_healthy}
-      resource-db: {condition: service_healthy}
-      base-db: {condition: service_healthy}
-      crafting-db: {condition: service_healthy}
     environment:
       WAREHOUSE_PASSWORD: ${WAREHOUSE_PASSWORD}
       PLAYER_DB_PASSWORD: ${PLAYER_DB_PASSWORD}

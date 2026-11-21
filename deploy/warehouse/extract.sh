@@ -9,9 +9,16 @@ extract() {
     service="$1"
     password="$2"
     table="$3"
+    host="$service-db"
+    port=5432
+    if [ -n "${ETL_DB_ROUTER:-}" ]; then
+        host="$ETL_DB_ROUTER"
+        name="$(printf '%s' "$service" | tr '[:lower:]' '[:upper:]')"
+        port="$(printenv "ETL_${name}_PORT")"
+    fi
     # All service and table names are fixed below. Only counts cross DB boundaries.
     count="$(PGPASSWORD="$password" PGOPTIONS='-c default_transaction_read_only=on -c statement_timeout=15000' \
-        psql -X -Aqt -v ON_ERROR_STOP=1 -h "$service-db" -U "$service" -d "${service}_db" \
+        psql -X -Aqt -v ON_ERROR_STOP=1 -h "$host" -p "$port" -U "$service" -d "${service}_db" \
         -c "SELECT count(*) FROM public.$table")"
     case "$count" in
         ''|*[!0-9]*) echo "Invalid aggregate from $service" >&2; exit 1 ;;

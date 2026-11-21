@@ -20,6 +20,33 @@ keeps past snapshots for comparison, without copying account records or tokens.
 The eight source reads are separate snapshots, so their counts can reflect
 slightly different times. See the [Lab 5 architecture](docs/architecture.md).
 
+### PostgreSQL replication and failover
+
+Add `-f deploy/docker-compose.lab5-ha.yml` to the Lab 5 Compose arguments.
+Start with `docker compose @lab5 up -d --build --wait`. Each domain database
+starts with one writer and two physical streaming standbys on independent
+volumes. Both application replicas and ETL use the same internal writer address
+on `db-router`. The router sends each new connection to the sole PostgreSQL
+node that is out of recovery.
+
+To demonstrate all eight databases, run the following against a fresh test
+project started with that overlay. This promotes the first standby in each
+cluster, so run it once per test deployment.
+
+```powershell
+python deploy/db-ha/verify.py --project pad-lab5 player game exam world zombie resource base crafting
+```
+
+For a planned switchover, pause client writes and run
+`python deploy/db-ha/failover.py player --project pad-lab5 --from-node 0 --to-node 1`.
+The script waits for the target to replay the captured WAL position, fences and
+stops the old writer, then promotes the target. A fenced volume refuses to
+start. Keep it for recovery evidence and reseed it from the current writer
+before bringing it back as a standby. For an already stopped writer, pass
+`--source-down` and choose the most caught-up standby. Replication is
+asynchronous, so a sudden crash can lose recent writes. Promotion is initiated
+by an operator. This Compose setup validates process failover on one Docker host.
+
 ## Lab 4: durable gRPC message broker
 
 Lab 4 adds a Python broker with subscriber/topic queues, native gRPC workers in all

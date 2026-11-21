@@ -8,8 +8,11 @@ The cache is a planned Lab 5 component until grades 6 and 7 are implemented.
 flowchart LR
     Gateway[Gateway] --> Broker[Message Broker]
     Broker --> Services[Eight domain services]
-    Services --> Sources[(Eight private PostgreSQL databases)]
-    Sources -->|Aggregate counts| ETL[ETL snapshot job]
+    Services --> Router[Internal PostgreSQL writer router]
+    ETL[ETL snapshot job] -->|Read-only aggregate queries| Router
+    Router --> Sources[(Eight private PostgreSQL writers)]
+    Sources -->|Physical WAL streaming| Standbys[(Two standbys per database)]
+    Operator[Operator] -->|Fence old writer and promote| Standbys
     ETL -->|Atomic batch| Warehouse[(PostgreSQL data warehouse)]
     Warehouse --> Analytics[Analytics queries]
     Gateway -. planned GET and authentication cache .-> Cache[(Cache shards)]
