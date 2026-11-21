@@ -1,3 +1,20 @@
+# Lab 5 architecture
+
+Lab 5 extends the Lab 4 request path below. The analytics layer takes
+independent read-only snapshots from the eight service databases.
+The cache is a planned Lab 5 component until grades 6 and 7 are implemented.
+
+```mermaid
+flowchart LR
+    Gateway[Gateway] --> Broker[Message Broker]
+    Broker --> Services[Eight domain services]
+    Services --> Sources[(Eight private PostgreSQL databases)]
+    Sources -->|Aggregate counts| ETL[ETL snapshot job]
+    ETL -->|Atomic batch| Warehouse[(PostgreSQL data warehouse)]
+    Warehouse --> Analytics[Analytics queries]
+    Gateway -. planned GET and authentication cache .-> Cache[(Cache shards)]
+```
+
 # Lab 4 architecture
 
 The public API remains REST for game clients. Gateway verifies player JWTs and
