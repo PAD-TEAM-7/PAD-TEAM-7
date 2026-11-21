@@ -17,7 +17,7 @@ flowchart LR
     ETL -->|Atomic batch| Warehouse[(PostgreSQL data warehouse)]
     Warehouse --> Analytics[Analytics queries]
     Gateway -->|Consistent-hash placement| Cache[(Three Redis cache shards)]
-    Broker -. Lab 5 saga draft .-> Sagas[(Durable craft settlement state)]
+    Broker -->|Persist consume, grant and refund states| Sagas[(Durable craft settlement state)]
 ```
 
 # Lab 4 architecture

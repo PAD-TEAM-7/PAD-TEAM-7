@@ -79,7 +79,7 @@ services. Redis Cluster instead uses 16,384 CRC16 slots, assigns slot ranges to
 servers and can move slots between them. This lab uses standalone Redis nodes and
 client-side ring placement.
 
-### Broker-coordinated Crafting settlement (draft)
+### Broker-coordinated Crafting settlement
 
 Add `-f deploy/docker-compose.lab5-sagas.yml` to the Lab 5 flags. Point
 `LAB5_BROKER_CONTEXT` and `LAB5_CRAFTING_CONTEXT` at the feature checkouts from
@@ -103,13 +103,17 @@ outbox event together.
 
 Import the [Lab 5 operations collection](postman/lab5-operations.postman_collection.json)
 with the normal private Postman environment. After creating a craft, send the
-saga status request to see its job and trace IDs. Full deployment acceptance for
-Broker-coordinated settlement remains pending.
+saga status request to see its job and trace IDs.
 
 Run `python scripts/lab5-saga-smoke.py --project pad-lab5` on the isolated
 deployment. It pauses both Player workers, waits until Broker has charged
 materials, restarts Broker, then resumes the workers and checks that the player
 received one kit and paid once. Use `--help` for nondefault host ports.
+
+The restart check passed with the Lab 5 database failover and cache overlays
+enabled. Broker, Crafting and Gateway have proposed `5.0.0` releases in their
+existing Docker Hub repositories. Their Lab 5 overlays use local builds until
+those releases are reviewed and published.
 
 ## Lab 4: durable gRPC message broker
 
