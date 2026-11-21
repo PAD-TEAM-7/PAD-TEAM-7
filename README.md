@@ -109,6 +109,8 @@ Run `python scripts/lab5-saga-smoke.py --project pad-lab5` on the isolated
 deployment. It pauses both Player workers, waits until Broker has charged
 materials, restarts Broker, then resumes the workers and checks that the player
 received one kit and paid once. Use `--help` for nondefault host ports.
+Add `--verify-refund` to check that Resource restores the materials when Player
+rejects a grant for a nonexistent fixture player.
 
 The restart check passed with the Lab 5 database failover and cache overlays
 enabled. Broker, Crafting and Gateway have proposed `5.0.0` releases in their

@@ -10,6 +10,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from lab4_client import ROOT, Lab4Client, http
+from lab4_rpc import broker_pb2 as pb
 
 
 def wait_for(probe, timeout=120):
@@ -24,6 +25,37 @@ def wait_for(probe, timeout=120):
     raise AssertionError("Timed out waiting for the expected Saga state.")
 
 
+def verify_refund(client, fixture):
+    """Use Resource fixture stock to exercise a definite Player rejection."""
+    absent_player = str(uuid4())
+    inputs = [{"item_id": "wood-01", "count": 4}, {"item_id": "metal-01", "count": 2}]
+    client.call(
+        "resource-service", "/api/v1/transactions/gather", "POST",
+        {"lobby_id": fixture["lobbyId"], "player_id": absent_player,
+         "source_pool_id": fixture["sourcePoolId"], "action_id": str(uuid4()),
+         "reason": "lab5-refund-fixture", "items": inputs},
+        source="resource-service", key=str(uuid4()),
+    )
+    # Fund one payment. A second compensated attempt proves the first was refunded.
+    for _ in range(2):
+        job = str(uuid4())
+        command = pb.Command(
+            method="POST", path="/api/v1/internal/craft-settlement", topic="commands.crafting",
+            idempotency_key=job, request_id=job,
+            body=json.dumps({"job_id": job, "player_id": absent_player,
+                             "lobby_id": fixture["lobbyId"], "inputs": inputs,
+                             "output": {"item_id": "barricade-kit-01", "count": 1}}).encode(),
+        )
+
+        def settled():
+            result = client.stub.Call(command, metadata=client.metadata("crafting-service"), timeout=5)
+            return result if result.status != 202 else None
+
+        reply = wait_for(settled, timeout=30)
+        assert reply.status == 200 and json.loads(reply.body)["status"] == "compensated"
+    print("PASS: Player rejected both grants and Resource restored the materials after each rejection.")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--project", required=True)
@@ -32,6 +64,7 @@ def main():
     parser.add_argument("--broker-grpc", default="127.0.0.1:28600")
     parser.add_argument("--broker-http", default="http://127.0.0.1:28601")
     parser.add_argument("--discovery", default="http://127.0.0.1:28500")
+    parser.add_argument("--verify-refund", action="store_true")
     args = parser.parse_args()
     if not args.project.startswith("pad-lab5"):
         parser.error("Run against an isolated pad-lab5 test project.")
@@ -116,6 +149,8 @@ def main():
         assert after["metal-01"] == before["metal-01"] - 2
         assert [row["count"] for row in inventory if row["item_id"] == "barricade-kit-01"] == [1]
         print(f"PASS: {job} resumed after Broker restart, charged once, and granted exactly one kit.")
+        if args.verify_refund:
+            verify_refund(client, values)
     finally:
         client.close()
 
