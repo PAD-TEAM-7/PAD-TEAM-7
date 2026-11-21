@@ -1,8 +1,8 @@
 {
   "info": {
-    "name": "PAD Lab 4 - gateway",
+    "name": "PAD Lab 5 - gateway",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "description": "Current Lab 4 deployment (Gateway 28080, Broker 28601, Discovery 28500). FIRST run scripts/lab4-prepare-postman.py and import its PRIVATE environment. Run folders in order. Regenerate fixtures before repeating a collection. All requests assert their expected status. Removed service-only Gateway routes deliberately expect 404. Native gRPC examples: postman/grpc/README.md. Never export real environment credentials into Git."
+    "description": "Lab 5 deployment (Gateway 28080, Broker 28601, Discovery 28500). FIRST run scripts/lab4-prepare-postman.py and import its PRIVATE environment. Run folders in order. Regenerate fixtures before repeating a collection. All requests assert their expected status. Removed service-only Gateway routes deliberately expect 404. Native gRPC examples: postman/grpc/README.md. Never export real environment credentials into Git."
   },
   "variable": [
     {
@@ -36,7 +36,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/health",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -64,7 +64,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/status",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -96,7 +96,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/players/{{playerId}}",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -128,7 +128,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/player-service/api/v1/health",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -169,7 +169,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/world-service/api/v1/events",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC.",
             "body": {
               "mode": "raw",
               "raw": "{}",
@@ -211,7 +211,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/health/upstreams",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -244,7 +244,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/gateway/routes",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -285,7 +285,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/gateway/dev/tokens",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC.",
             "body": {
               "mode": "raw",
               "raw": "{}",
@@ -308,6 +308,95 @@
               }
             }
           ]
+        },
+        {
+          "name": "Lab 5 - read zombie catalogue",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              },
+              {
+                "key": "Cache-Control",
+                "value": "max-age=30"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/zombie-types",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Gateway identified a cache shard\", () => {",
+                  "  pm.expect([\"HIT\", \"MISS\"]).to.include(pm.response.headers.get(\"X-PAD-Cache\"));",
+                  "  pm.expect(pm.response.headers.get(\"X-PAD-Cache-Shard\")).to.be.a(\"string\").and.not.empty;",
+                  "});",
+                  "pm.variables.set(\"lab5CacheShard\", pm.response.headers.get(\"X-PAD-Cache-Shard\"));",
+                  "pm.variables.set(\"lab5CacheBody\", pm.response.text());"
+                ]
+              }
+            }
+          ],
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          }
+        },
+        {
+          "name": "Lab 5 - repeat zombie catalogue on the same shard",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              },
+              {
+                "key": "Cache-Control",
+                "value": "max-age=30"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/zombie-types",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Repeat is a HIT on the same shard\", () => {",
+                  "  pm.expect(pm.response.headers.get(\"X-PAD-Cache\")).to.eql(\"HIT\");",
+                  "  pm.expect(pm.response.headers.get(\"X-PAD-Cache-Shard\")).to.eql(pm.variables.get(\"lab5CacheShard\"));",
+                  "  pm.expect(pm.response.json()).to.deep.eql(JSON.parse(pm.variables.get(\"lab5CacheBody\")));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          }
         }
       ]
     }
