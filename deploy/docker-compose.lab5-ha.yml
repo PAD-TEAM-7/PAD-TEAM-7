@@ -1,0 +1,898 @@
+{
+  "services": {
+    "db-router": {
+      "build": "./db-ha",
+      "restart": "unless-stopped",
+      "environment": {
+        "PLAYER_DB_PASSWORD": "${PLAYER_DB_PASSWORD}",
+        "GAME_DB_PASSWORD": "${GAME_DB_PASSWORD}",
+        "EXAM_DB_PASSWORD": "${EXAM_DB_PASSWORD}",
+        "WORLD_DB_PASSWORD": "${WORLD_DB_PASSWORD}",
+        "ZOMBIE_DB_PASSWORD": "${ZOMBIE_DB_PASSWORD}",
+        "RESOURCE_DB_PASSWORD": "${RESOURCE_DB_PASSWORD}",
+        "BASE_DB_PASSWORD": "${BASE_DB_PASSWORD}",
+        "CRAFTING_DB_PASSWORD": "${CRAFTING_DB_PASSWORD}"
+      },
+      "depends_on": {
+        "player-db": {
+          "condition": "service_started",
+          "required": false
+        },
+        "game-db": {
+          "condition": "service_started",
+          "required": false
+        },
+        "exam-db": {
+          "condition": "service_started",
+          "required": false
+        },
+        "world-db": {
+          "condition": "service_started",
+          "required": false
+        },
+        "zombie-db": {
+          "condition": "service_started",
+          "required": false
+        },
+        "resource-db": {
+          "condition": "service_started",
+          "required": false
+        },
+        "base-db": {
+          "condition": "service_started",
+          "required": false
+        },
+        "crafting-db": {
+          "condition": "service_started",
+          "required": false
+        }
+      }
+    },
+    "warehouse-etl": {
+      "environment": {
+        "ETL_DB_ROUTER": "db-router",
+        "ETL_PLAYER_PORT": "15432",
+        "ETL_GAME_PORT": "15433",
+        "ETL_EXAM_PORT": "15434",
+        "ETL_WORLD_PORT": "15435",
+        "ETL_ZOMBIE_PORT": "15436",
+        "ETL_RESOURCE_PORT": "15437",
+        "ETL_BASE_PORT": "15438",
+        "ETL_CRAFTING_PORT": "15439"
+      },
+      "depends_on": {
+        "db-router": {
+          "condition": "service_started"
+        }
+      }
+    },
+    "player-db": {
+      "entrypoint": [
+        "/bin/sh",
+        "/db-ha/start.sh"
+      ],
+      "volumes": [
+        "./db-ha:/db-ha:ro"
+      ]
+    },
+    "player-db-replica-1": {
+      "entrypoint": [
+        "/bin/sh",
+        "/db-ha/start.sh"
+      ],
+      "volumes": [
+        "./db-ha:/db-ha:ro",
+        "player_db_replica_1_data:/var/lib/postgresql/data"
+      ],
+      "image": "postgres:16-alpine",
+      "restart": "unless-stopped",
+      "depends_on": {
+        "db-router": {
+          "condition": "service_started"
+        }
+      },
+      "environment": {
+        "POSTGRES_USER": "player",
+        "POSTGRES_DB": "player_db",
+        "POSTGRES_PASSWORD": "${PLAYER_DB_PASSWORD}",
+        "FOLLOW_HOST": "db-router",
+        "FOLLOW_PORT": "15432",
+        "PGDATA": "/var/lib/postgresql/data/replica"
+      },
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "pg_isready",
+          "-U",
+          "player",
+          "-d",
+          "player_db"
+        ],
+        "interval": "3s",
+        "timeout": "2s",
+        "retries": 30
+      }
+    },
+    "player-db-replica-2": {
+      "entrypoint": [
+        "/bin/sh",
+        "/db-ha/start.sh"
+      ],
+      "volumes": [
+        "./db-ha:/db-ha:ro",
+        "player_db_replica_2_data:/var/lib/postgresql/data"
+      ],
+      "image": "postgres:16-alpine",
+      "restart": "unless-stopped",
+      "depends_on": {
+        "db-router": {
+          "condition": "service_started"
+        }
+      },
+      "environment": {
+        "POSTGRES_USER": "player",
+        "POSTGRES_DB": "player_db",
+        "POSTGRES_PASSWORD": "${PLAYER_DB_PASSWORD}",
+        "FOLLOW_HOST": "db-router",
+        "FOLLOW_PORT": "15432",
+        "PGDATA": "/var/lib/postgresql/data/replica"
+      },
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "pg_isready",
+          "-U",
+          "player",
+          "-d",
+          "player_db"
+        ],
+        "interval": "3s",
+        "timeout": "2s",
+        "retries": 30
+      }
+    },
+    "player-service": {
+      "environment": {
+        "DATABASE_URL": "postgres://player:${PLAYER_DB_PASSWORD}@db-router:15432/player_db?sslmode=disable"
+      },
+      "depends_on": {
+        "db-router": {
+          "condition": "service_started"
+        },
+        "player-db": {
+          "condition": "service_started",
+          "required": false
+        }
+      }
+    },
+    "game-db": {
+      "entrypoint": [
+        "/bin/sh",
+        "/db-ha/start.sh"
+      ],
+      "volumes": [
+        "./db-ha:/db-ha:ro"
+      ]
+    },
+    "game-db-replica-1": {
+      "entrypoint": [
+        "/bin/sh",
+        "/db-ha/start.sh"
+      ],
+      "volumes": [
+        "./db-ha:/db-ha:ro",
+        "game_db_replica_1_data:/var/lib/postgresql/data"
+      ],
+      "image": "postgres:16-alpine",
+      "restart": "unless-stopped",
+      "depends_on": {
+        "db-router": {
+          "condition": "service_started"
+        }
+      },
+      "environment": {
+        "POSTGRES_USER": "game",
+        "POSTGRES_DB": "game_db",
+        "POSTGRES_PASSWORD": "${GAME_DB_PASSWORD}",
+        "FOLLOW_HOST": "db-router",
+        "FOLLOW_PORT": "15433",
+        "PGDATA": "/var/lib/postgresql/data/replica"
+      },
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "pg_isready",
+          "-U",
+          "game",
+          "-d",
+          "game_db"
+        ],
+        "interval": "3s",
+        "timeout": "2s",
+        "retries": 30
+      }
+    },
+    "game-db-replica-2": {
+      "entrypoint": [
+        "/bin/sh",
+        "/db-ha/start.sh"
+      ],
+      "volumes": [
+        "./db-ha:/db-ha:ro",
+        "game_db_replica_2_data:/var/lib/postgresql/data"
+      ],
+      "image": "postgres:16-alpine",
+      "restart": "unless-stopped",
+      "depends_on": {
+        "db-router": {
+          "condition": "service_started"
+        }
+      },
+      "environment": {
+        "POSTGRES_USER": "game",
+        "POSTGRES_DB": "game_db",
+        "POSTGRES_PASSWORD": "${GAME_DB_PASSWORD}",
+        "FOLLOW_HOST": "db-router",
+        "FOLLOW_PORT": "15433",
+        "PGDATA": "/var/lib/postgresql/data/replica"
+      },
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "pg_isready",
+          "-U",
+          "game",
+          "-d",
+          "game_db"
+        ],
+        "interval": "3s",
+        "timeout": "2s",
+        "retries": 30
+      }
+    },
+    "game-service": {
+      "environment": {
+        "DATABASE_URL": "postgres://game:${GAME_DB_PASSWORD}@db-router:15433/game_db?sslmode=disable"
+      },
+      "depends_on": {
+        "db-router": {
+          "condition": "service_started"
+        },
+        "game-db": {
+          "condition": "service_started",
+          "required": false
+        }
+      }
+    },
+    "game-service-2": {
+      "environment": {
+        "DATABASE_URL": "postgres://game:${GAME_DB_PASSWORD}@db-router:15433/game_db?sslmode=disable"
+      },
+      "depends_on": {
+        "db-router": {
+          "condition": "service_started"
+        },
+        "game-db": {
+          "condition": "service_started",
+          "required": false
+        }
+      }
+    },
+    "exam-db": {
+      "entrypoint": [
+        "/bin/sh",
+        "/db-ha/start.sh"
+      ],
+      "volumes": [
+        "./db-ha:/db-ha:ro"
+      ]
+    },
+    "exam-db-replica-1": {
+      "entrypoint": [
+        "/bin/sh",
+        "/db-ha/start.sh"
+      ],
+      "volumes": [
+        "./db-ha:/db-ha:ro",
+        "exam_db_replica_1_data:/var/lib/postgresql/data"
+      ],
+      "image": "postgres:16-alpine",
+      "restart": "unless-stopped",
+      "depends_on": {
+        "db-router": {
+          "condition": "service_started"
+        }
+      },
+      "environment": {
+        "POSTGRES_USER": "exam",
+        "POSTGRES_DB": "exam_db",
+        "POSTGRES_PASSWORD": "${EXAM_DB_PASSWORD}",
+        "FOLLOW_HOST": "db-router",
+        "FOLLOW_PORT": "15434",
+        "PGDATA": "/var/lib/postgresql/data/replica"
+      },
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "pg_isready",
+          "-U",
+          "exam",
+          "-d",
+          "exam_db"
+        ],
+        "interval": "3s",
+        "timeout": "2s",
+        "retries": 30
+      }
+    },
+    "exam-db-replica-2": {
+      "entrypoint": [
+        "/bin/sh",
+        "/db-ha/start.sh"
+      ],
+      "volumes": [
+        "./db-ha:/db-ha:ro",
+        "exam_db_replica_2_data:/var/lib/postgresql/data"
+      ],
+      "image": "postgres:16-alpine",
+      "restart": "unless-stopped",
+      "depends_on": {
+        "db-router": {
+          "condition": "service_started"
+        }
+      },
+      "environment": {
+        "POSTGRES_USER": "exam",
+        "POSTGRES_DB": "exam_db",
+        "POSTGRES_PASSWORD": "${EXAM_DB_PASSWORD}",
+        "FOLLOW_HOST": "db-router",
+        "FOLLOW_PORT": "15434",
+        "PGDATA": "/var/lib/postgresql/data/replica"
+      },
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "pg_isready",
+          "-U",
+          "exam",
+          "-d",
+          "exam_db"
+        ],
+        "interval": "3s",
+        "timeout": "2s",
+        "retries": 30
+      }
+    },
+    "exam-service": {
+      "environment": {
+        "DB_HOST": "db-router",
+        "DB_PORT": "15434"
+      },
+      "depends_on": {
+        "db-router": {
+          "condition": "service_started"
+        },
+        "exam-db": {
+          "condition": "service_started",
+          "required": false
+        }
+      }
+    },
+    "world-db": {
+      "entrypoint": [
+        "/bin/sh",
+        "/db-ha/start.sh"
+      ],
+      "volumes": [
+        "./db-ha:/db-ha:ro"
+      ]
+    },
+    "world-db-replica-1": {
+      "entrypoint": [
+        "/bin/sh",
+        "/db-ha/start.sh"
+      ],
+      "volumes": [
+        "./db-ha:/db-ha:ro",
+        "world_db_replica_1_data:/var/lib/postgresql/data"
+      ],
+      "image": "postgres:16-alpine",
+      "restart": "unless-stopped",
+      "depends_on": {
+        "db-router": {
+          "condition": "service_started"
+        }
+      },
+      "environment": {
+        "POSTGRES_USER": "world",
+        "POSTGRES_DB": "world_db",
+        "POSTGRES_PASSWORD": "${WORLD_DB_PASSWORD}",
+        "FOLLOW_HOST": "db-router",
+        "FOLLOW_PORT": "15435",
+        "PGDATA": "/var/lib/postgresql/data/replica"
+      },
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "pg_isready",
+          "-U",
+          "world",
+          "-d",
+          "world_db"
+        ],
+        "interval": "3s",
+        "timeout": "2s",
+        "retries": 30
+      }
+    },
+    "world-db-replica-2": {
+      "entrypoint": [
+        "/bin/sh",
+        "/db-ha/start.sh"
+      ],
+      "volumes": [
+        "./db-ha:/db-ha:ro",
+        "world_db_replica_2_data:/var/lib/postgresql/data"
+      ],
+      "image": "postgres:16-alpine",
+      "restart": "unless-stopped",
+      "depends_on": {
+        "db-router": {
+          "condition": "service_started"
+        }
+      },
+      "environment": {
+        "POSTGRES_USER": "world",
+        "POSTGRES_DB": "world_db",
+        "POSTGRES_PASSWORD": "${WORLD_DB_PASSWORD}",
+        "FOLLOW_HOST": "db-router",
+        "FOLLOW_PORT": "15435",
+        "PGDATA": "/var/lib/postgresql/data/replica"
+      },
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "pg_isready",
+          "-U",
+          "world",
+          "-d",
+          "world_db"
+        ],
+        "interval": "3s",
+        "timeout": "2s",
+        "retries": 30
+      }
+    },
+    "world-service": {
+      "environment": {
+        "DB_HOST": "db-router",
+        "DB_PORT": "15435"
+      },
+      "depends_on": {
+        "db-router": {
+          "condition": "service_started"
+        },
+        "world-db": {
+          "condition": "service_started",
+          "required": false
+        }
+      }
+    },
+    "zombie-db": {
+      "entrypoint": [
+        "/bin/sh",
+        "/db-ha/start.sh"
+      ],
+      "volumes": [
+        "./db-ha:/db-ha:ro"
+      ]
+    },
+    "zombie-db-replica-1": {
+      "entrypoint": [
+        "/bin/sh",
+        "/db-ha/start.sh"
+      ],
+      "volumes": [
+        "./db-ha:/db-ha:ro",
+        "zombie_db_replica_1_data:/var/lib/postgresql/data"
+      ],
+      "image": "postgres:16-alpine",
+      "restart": "unless-stopped",
+      "depends_on": {
+        "db-router": {
+          "condition": "service_started"
+        }
+      },
+      "environment": {
+        "POSTGRES_USER": "zombie",
+        "POSTGRES_DB": "zombie_db",
+        "POSTGRES_PASSWORD": "${ZOMBIE_DB_PASSWORD}",
+        "FOLLOW_HOST": "db-router",
+        "FOLLOW_PORT": "15436",
+        "PGDATA": "/var/lib/postgresql/data/replica"
+      },
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "pg_isready",
+          "-U",
+          "zombie",
+          "-d",
+          "zombie_db"
+        ],
+        "interval": "3s",
+        "timeout": "2s",
+        "retries": 30
+      }
+    },
+    "zombie-db-replica-2": {
+      "entrypoint": [
+        "/bin/sh",
+        "/db-ha/start.sh"
+      ],
+      "volumes": [
+        "./db-ha:/db-ha:ro",
+        "zombie_db_replica_2_data:/var/lib/postgresql/data"
+      ],
+      "image": "postgres:16-alpine",
+      "restart": "unless-stopped",
+      "depends_on": {
+        "db-router": {
+          "condition": "service_started"
+        }
+      },
+      "environment": {
+        "POSTGRES_USER": "zombie",
+        "POSTGRES_DB": "zombie_db",
+        "POSTGRES_PASSWORD": "${ZOMBIE_DB_PASSWORD}",
+        "FOLLOW_HOST": "db-router",
+        "FOLLOW_PORT": "15436",
+        "PGDATA": "/var/lib/postgresql/data/replica"
+      },
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "pg_isready",
+          "-U",
+          "zombie",
+          "-d",
+          "zombie_db"
+        ],
+        "interval": "3s",
+        "timeout": "2s",
+        "retries": 30
+      }
+    },
+    "zombie-service": {
+      "environment": {
+        "DATABASE_URL": "postgres://zombie:${ZOMBIE_DB_PASSWORD}@db-router:15436/zombie_db?sslmode=disable"
+      },
+      "depends_on": {
+        "db-router": {
+          "condition": "service_started"
+        },
+        "zombie-db": {
+          "condition": "service_started",
+          "required": false
+        }
+      }
+    },
+    "resource-db": {
+      "entrypoint": [
+        "/bin/sh",
+        "/db-ha/start.sh"
+      ],
+      "volumes": [
+        "./db-ha:/db-ha:ro"
+      ]
+    },
+    "resource-db-replica-1": {
+      "entrypoint": [
+        "/bin/sh",
+        "/db-ha/start.sh"
+      ],
+      "volumes": [
+        "./db-ha:/db-ha:ro",
+        "resource_db_replica_1_data:/var/lib/postgresql/data"
+      ],
+      "image": "postgres:16-alpine",
+      "restart": "unless-stopped",
+      "depends_on": {
+        "db-router": {
+          "condition": "service_started"
+        }
+      },
+      "environment": {
+        "POSTGRES_USER": "resource",
+        "POSTGRES_DB": "resource_db",
+        "POSTGRES_PASSWORD": "${RESOURCE_DB_PASSWORD}",
+        "FOLLOW_HOST": "db-router",
+        "FOLLOW_PORT": "15437",
+        "PGDATA": "/var/lib/postgresql/data/replica"
+      },
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "pg_isready",
+          "-U",
+          "resource",
+          "-d",
+          "resource_db"
+        ],
+        "interval": "3s",
+        "timeout": "2s",
+        "retries": 30
+      }
+    },
+    "resource-db-replica-2": {
+      "entrypoint": [
+        "/bin/sh",
+        "/db-ha/start.sh"
+      ],
+      "volumes": [
+        "./db-ha:/db-ha:ro",
+        "resource_db_replica_2_data:/var/lib/postgresql/data"
+      ],
+      "image": "postgres:16-alpine",
+      "restart": "unless-stopped",
+      "depends_on": {
+        "db-router": {
+          "condition": "service_started"
+        }
+      },
+      "environment": {
+        "POSTGRES_USER": "resource",
+        "POSTGRES_DB": "resource_db",
+        "POSTGRES_PASSWORD": "${RESOURCE_DB_PASSWORD}",
+        "FOLLOW_HOST": "db-router",
+        "FOLLOW_PORT": "15437",
+        "PGDATA": "/var/lib/postgresql/data/replica"
+      },
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "pg_isready",
+          "-U",
+          "resource",
+          "-d",
+          "resource_db"
+        ],
+        "interval": "3s",
+        "timeout": "2s",
+        "retries": 30
+      }
+    },
+    "resource-service": {
+      "environment": {
+        "DATABASE_URL": "postgres://resource:${RESOURCE_DB_PASSWORD}@db-router:15437/resource_db?sslmode=disable"
+      },
+      "depends_on": {
+        "db-router": {
+          "condition": "service_started"
+        },
+        "resource-db": {
+          "condition": "service_started",
+          "required": false
+        }
+      }
+    },
+    "base-db": {
+      "entrypoint": [
+        "/bin/sh",
+        "/db-ha/start.sh"
+      ],
+      "volumes": [
+        "./db-ha:/db-ha:ro"
+      ]
+    },
+    "base-db-replica-1": {
+      "entrypoint": [
+        "/bin/sh",
+        "/db-ha/start.sh"
+      ],
+      "volumes": [
+        "./db-ha:/db-ha:ro",
+        "base_db_replica_1_data:/var/lib/postgresql/data"
+      ],
+      "image": "postgres:16-alpine",
+      "restart": "unless-stopped",
+      "depends_on": {
+        "db-router": {
+          "condition": "service_started"
+        }
+      },
+      "environment": {
+        "POSTGRES_USER": "base",
+        "POSTGRES_DB": "base_db",
+        "POSTGRES_PASSWORD": "${BASE_DB_PASSWORD}",
+        "FOLLOW_HOST": "db-router",
+        "FOLLOW_PORT": "15438",
+        "PGDATA": "/var/lib/postgresql/data/replica"
+      },
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "pg_isready",
+          "-U",
+          "base",
+          "-d",
+          "base_db"
+        ],
+        "interval": "3s",
+        "timeout": "2s",
+        "retries": 30
+      }
+    },
+    "base-db-replica-2": {
+      "entrypoint": [
+        "/bin/sh",
+        "/db-ha/start.sh"
+      ],
+      "volumes": [
+        "./db-ha:/db-ha:ro",
+        "base_db_replica_2_data:/var/lib/postgresql/data"
+      ],
+      "image": "postgres:16-alpine",
+      "restart": "unless-stopped",
+      "depends_on": {
+        "db-router": {
+          "condition": "service_started"
+        }
+      },
+      "environment": {
+        "POSTGRES_USER": "base",
+        "POSTGRES_DB": "base_db",
+        "POSTGRES_PASSWORD": "${BASE_DB_PASSWORD}",
+        "FOLLOW_HOST": "db-router",
+        "FOLLOW_PORT": "15438",
+        "PGDATA": "/var/lib/postgresql/data/replica"
+      },
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "pg_isready",
+          "-U",
+          "base",
+          "-d",
+          "base_db"
+        ],
+        "interval": "3s",
+        "timeout": "2s",
+        "retries": 30
+      }
+    },
+    "base-service": {
+      "environment": {
+        "DB_HOST": "db-router",
+        "DB_PORT": "15438"
+      },
+      "depends_on": {
+        "db-router": {
+          "condition": "service_started"
+        },
+        "base-db": {
+          "condition": "service_started",
+          "required": false
+        }
+      }
+    },
+    "crafting-db": {
+      "entrypoint": [
+        "/bin/sh",
+        "/db-ha/start.sh"
+      ],
+      "volumes": [
+        "./db-ha:/db-ha:ro"
+      ]
+    },
+    "crafting-db-replica-1": {
+      "entrypoint": [
+        "/bin/sh",
+        "/db-ha/start.sh"
+      ],
+      "volumes": [
+        "./db-ha:/db-ha:ro",
+        "crafting_db_replica_1_data:/var/lib/postgresql/data"
+      ],
+      "image": "postgres:16-alpine",
+      "restart": "unless-stopped",
+      "depends_on": {
+        "db-router": {
+          "condition": "service_started"
+        }
+      },
+      "environment": {
+        "POSTGRES_USER": "crafting",
+        "POSTGRES_DB": "crafting_db",
+        "POSTGRES_PASSWORD": "${CRAFTING_DB_PASSWORD}",
+        "FOLLOW_HOST": "db-router",
+        "FOLLOW_PORT": "15439",
+        "PGDATA": "/var/lib/postgresql/data/replica"
+      },
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "pg_isready",
+          "-U",
+          "crafting",
+          "-d",
+          "crafting_db"
+        ],
+        "interval": "3s",
+        "timeout": "2s",
+        "retries": 30
+      }
+    },
+    "crafting-db-replica-2": {
+      "entrypoint": [
+        "/bin/sh",
+        "/db-ha/start.sh"
+      ],
+      "volumes": [
+        "./db-ha:/db-ha:ro",
+        "crafting_db_replica_2_data:/var/lib/postgresql/data"
+      ],
+      "image": "postgres:16-alpine",
+      "restart": "unless-stopped",
+      "depends_on": {
+        "db-router": {
+          "condition": "service_started"
+        }
+      },
+      "environment": {
+        "POSTGRES_USER": "crafting",
+        "POSTGRES_DB": "crafting_db",
+        "POSTGRES_PASSWORD": "${CRAFTING_DB_PASSWORD}",
+        "FOLLOW_HOST": "db-router",
+        "FOLLOW_PORT": "15439",
+        "PGDATA": "/var/lib/postgresql/data/replica"
+      },
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "pg_isready",
+          "-U",
+          "crafting",
+          "-d",
+          "crafting_db"
+        ],
+        "interval": "3s",
+        "timeout": "2s",
+        "retries": 30
+      }
+    },
+    "crafting-service": {
+      "environment": {
+        "DB_HOST": "db-router",
+        "DB_PORT": "15439"
+      },
+      "depends_on": {
+        "db-router": {
+          "condition": "service_started"
+        },
+        "crafting-db": {
+          "condition": "service_started",
+          "required": false
+        }
+      }
+    }
+  },
+  "volumes": {
+    "player_db_replica_1_data": null,
+    "player_db_replica_2_data": null,
+    "game_db_replica_1_data": null,
+    "game_db_replica_2_data": null,
+    "exam_db_replica_1_data": null,
+    "exam_db_replica_2_data": null,
+    "world_db_replica_1_data": null,
+    "world_db_replica_2_data": null,
+    "zombie_db_replica_1_data": null,
+    "zombie_db_replica_2_data": null,
+    "resource_db_replica_1_data": null,
+    "resource_db_replica_2_data": null,
+    "base_db_replica_1_data": null,
+    "base_db_replica_2_data": null,
+    "crafting_db_replica_1_data": null,
+    "crafting_db_replica_2_data": null
+  }
+}

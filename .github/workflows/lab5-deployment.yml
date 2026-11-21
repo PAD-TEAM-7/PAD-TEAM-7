@@ -1,0 +1,37 @@
+name: Lab 5 deployment
+
+on:
+  pull_request:
+    branches: [main, development]
+  push:
+    branches: [main, development, 'feat/platform/**']
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Compose and ETL shell syntax
+        run: |
+          python3 deploy/db-ha/generate.py --check
+          docker compose --env-file deploy/.env.example -p pad-lab5 \
+            -f deploy/docker-compose.lab4.yml -f deploy/docker-compose.lab5.yml \
+            --profile analytics config --quiet
+          docker compose --env-file deploy/.env.example -p pad-lab5 \
+            -f deploy/docker-compose.lab4.yml -f deploy/docker-compose.lab5.yml \
+            -f deploy/docker-compose.lab5-ha.yml -f deploy/docker-compose.lab5-cache.yml \
+            -f deploy/docker-compose.lab5-sagas.yml \
+            -f deploy/docker-compose.lab5-2pc.yml \
+            -f deploy/docker-compose.lab5-release.yml \
+            --profile analytics config --quiet
+          sh -n deploy/warehouse/extract.sh
+          sh -n deploy/db-ha/start.sh
+          sh -n deploy/two-phase/install.sh
+          python3 -m compileall -q deploy/db-ha
+          python3 -m compileall -q scripts/lab5-ha-smoke.py scripts/lab5_acceptance
+          python3 -m py_compile scripts/lab5-saga-smoke.py
+          python3 -m py_compile scripts/lab5-2pc-smoke.py scripts/lab5-2pc-verify.py
+          python3 -m json.tool postman/lab5-operations.postman_collection.json >/dev/null

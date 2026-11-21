@@ -1,3 +1,27 @@
+# Lab 5 architecture
+
+Lab 5 extends the Lab 4 request path below. The analytics layer takes
+independent read-only snapshots from the eight service databases.
+Gateway uses a consistent-hash ring to route approved catalogue and public
+signing-key cache entries across three standalone Redis shards.
+
+```mermaid
+flowchart LR
+    Gateway[Gateway] --> Broker[Message Broker]
+    Broker --> Services[Eight domain services]
+    Services --> Router[Internal PostgreSQL writer router]
+    ETL[ETL snapshot job] -->|Read-only aggregate queries| Router
+    Router --> Sources[(Eight private PostgreSQL writers)]
+    Sources -->|Physical WAL streaming| Standbys[(Two standbys per database)]
+    Operator[Operator] -->|Fence old writer and promote| Standbys
+    ETL -->|Atomic batch| Warehouse[(PostgreSQL data warehouse)]
+    Warehouse --> Analytics[Analytics queries]
+    Gateway -->|Consistent-hash placement| Cache[(Three Redis cache shards)]
+    Broker -->|Persist consume, grant and refund states| Sagas[(Durable craft settlement state)]
+    Broker -->|Optional prepare and resolve| Participants[Restricted Player and Resource 2PC functions]
+    Participants --> Router
+```
+
 # Lab 4 architecture
 
 The public API remains REST for game clients. Gateway verifies player JWTs and
@@ -22,6 +46,10 @@ flowchart LR
     Broker --> Logs[(Per-instance system log files)]
     Workers --> Logs
     Gateway --> Logs
+    Discovery --> Logs
+    Gateway -. fetches Player public keys .-> Workers
+    Gateway -. resolves WebSocket owner .-> Discovery
+    Discovery -. SMTP critical-load and circuit alerts .-> Developer[Developer email]
     Prometheus[Prometheus] -->|real broker and replica metrics| Broker
     Grafana[Grafana dashboard] --> Prometheus
     Operator[Authenticated operator] -->|topics, dead letters, ZIP log export| Broker

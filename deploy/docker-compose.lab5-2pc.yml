@@ -1,0 +1,29 @@
+# Optional two-phase mode. Load after the HA and saga overlays.
+services:
+  player-db:
+    environment: {LAB5_MAX_PREPARED_TRANSACTIONS: '32'}
+  player-db-replica-1:
+    environment: {LAB5_MAX_PREPARED_TRANSACTIONS: '32'}
+  player-db-replica-2:
+    environment: {LAB5_MAX_PREPARED_TRANSACTIONS: '32'}
+  resource-db:
+    environment: {LAB5_MAX_PREPARED_TRANSACTIONS: '32'}
+  resource-db-replica-1:
+    environment: {LAB5_MAX_PREPARED_TRANSACTIONS: '32'}
+  resource-db-replica-2:
+    environment: {LAB5_MAX_PREPARED_TRANSACTIONS: '32'}
+  two-phase-install:
+    profiles: [maintenance]
+    image: postgres:16-alpine
+    environment:
+      LAB5_TPC_PASSWORD: ${LAB5_TPC_PASSWORD:?Set LAB5_TPC_PASSWORD}
+      PLAYER_DB_PASSWORD: ${PLAYER_DB_PASSWORD}
+      RESOURCE_DB_PASSWORD: ${RESOURCE_DB_PASSWORD}
+    volumes: ["./two-phase:/two-phase:ro"]
+    entrypoint: ["/bin/sh", "/two-phase/install.sh"]
+  message-broker:
+    environment:
+      LAB5_TPC_PASSWORD: ${LAB5_TPC_PASSWORD:?Set LAB5_TPC_PASSWORD}
+  crafting-service:
+    environment:
+      LAB5_CRAFT_PROTOCOL: '2pc'

@@ -1,5 +1,178 @@
 # In Kahoots with the Undead
 
+## Lab 5 warehouse and ETL
+
+Use the Lab 4 deployment with the Lab 5 overlay. Set a fresh
+`WAREHOUSE_PASSWORD` in your local `deploy/.env`. Stop the Lab 4 project
+first if its host ports are in use. The separate project name isolates volumes.
+
+```powershell
+$lab5 = @('-p', 'pad-lab5', '-f', 'deploy/docker-compose.lab4.yml', '-f', 'deploy/docker-compose.lab5.yml')
+docker compose @lab5 up -d
+# Once the application workers are ready and their migrations have completed:
+docker compose @lab5 run --rm warehouse-etl
+docker compose @lab5 exec -T warehouse psql -U warehouse -d pad_warehouse -c 'TABLE analytics.latest;'
+```
+
+The job reads a fixed set of aggregate counts from all eight databases in
+read-only sessions. It loads a complete batch in one warehouse transaction and
+keeps past snapshots for comparison, without copying account records or tokens.
+The eight source reads are separate snapshots, so their counts can reflect
+slightly different times. See the [Lab 5 architecture](docs/architecture.md).
+
+### PostgreSQL replication and failover
+
+Add `-f deploy/docker-compose.lab5-ha.yml` to the Lab 5 Compose arguments.
+Start with `docker compose @lab5 up -d --build --wait`. Each domain database
+starts with one writer and two physical streaming standbys on independent
+volumes. Both application replicas and ETL use the same internal writer address
+on `db-router`. The router sends each new connection to the sole PostgreSQL
+node that is out of recovery.
+
+To demonstrate all eight databases, run the following against a fresh test
+project started with that overlay. This promotes the first standby in each
+cluster, so run it once per test deployment.
+
+```powershell
+python deploy/db-ha/verify.py --project pad-lab5 player game exam world zombie resource base crafting
+```
+
+For a planned switchover, pause client writes and run
+`python deploy/db-ha/failover.py player --project pad-lab5 --from-node 0 --to-node 1`.
+The script waits for the target to replay the captured WAL position, fences and
+stops the old writer, then promotes the target. A fenced volume refuses to
+start. Keep it for recovery evidence and reseed it from the current writer
+before bringing it back as a standby. For an already stopped writer, pass
+`--source-down` and choose the most caught-up standby. Replication is
+asynchronous, so a sudden crash can lose recent writes. Promotion is initiated
+by an operator. This Compose setup validates process failover on one Docker host.
+After a switch, restart a worker with `docker compose @lab5 up -d --no-deps player-service`
+so it reconnects to the current writer without attempting to start fenced nodes.
+
+Run `python scripts/lab5-ha-smoke.py` after promotion to verify the owner-specific
+Player/Game, Zombie/Resource, Exam/World and Base/Crafting business flows. Use
+`--owner` to select one teammate and `--help` for alternate local ports.
+
+### GET and authentication cache
+
+Use the Gateway Lab 5 branch until its release is pinned. Set
+`LAB5_GATEWAY_CONTEXT` to that checkout, relative to the `deploy` directory
+or as an absolute path, and set a fresh `LAB5_CACHE_PASSWORD` in the local
+environment. Add `-f deploy/docker-compose.lab5-cache.yml` to the Compose
+arguments and start with `docker compose @lab5 up -d --build`.
+
+With the same player token, call `GET /api/v1/courses`,
+`GET /api/v1/recipes`, or `GET /api/v1/zombie-types` twice. The first
+eligible response sets `X-PAD-Cache: MISS` and the second sets
+`X-PAD-Cache: HIT`. Both return the same `X-PAD-Cache-Shard` for the key.
+Catalogue entries expire after 30 seconds and are scoped to the verified
+player, roles, path and query. Gateway always verifies the JWT. Redis also
+caches Player's public signing keys for 60 seconds, with integrity checks on
+shared entries. Unknown signing keys are fetched directly from Player.
+
+Gateway places 128 virtual nodes per Redis shard on a SHA-256 ring. Each key goes
+to the first node clockwise, wrapping at the end. Adding a shard changes
+ownership only where that shard takes over part of the ring. Existing entries
+expire naturally, while new owners refetch misses from the original services.
+If one Redis shard fails, requests for its keys fall back to Broker and the
+services. Redis Cluster instead uses 16,384 CRC16 slots, assigns slot ranges to
+servers and can move slots between them. This lab uses standalone Redis nodes and
+client-side ring placement.
+
+### Crafting two-phase commit
+
+The two-phase mode stages the actual Resource deduction and Player inventory
+grant in separate PostgreSQL transactions. Each participant votes by running
+`PREPARE TRANSACTION`. Broker persists a commit decision only after both are
+prepared. It records an abort when either participant rejects its work. A
+restarted Broker resolves the same transaction IDs and checks committed markers
+before replying. This mode applies to the Crafting settlement; it does not
+change the transaction protocol of other business workflows.
+
+Use a dedicated Compose project. Add the saga overlay and then
+`-f deploy/docker-compose.lab5-2pc.yml` after the HA overlay. Set a unique
+local `LAB5_TPC_PASSWORD` for the restricted participant roles. After the
+services are healthy and migrations have completed:
+
+```powershell
+docker compose @lab5 run --rm two-phase-install
+python scripts/lab5-2pc-smoke.py --project pad-lab5-2pc
+```
+
+Broker's database login can run the two owner-defined settlement functions and
+read their commit markers. It has no direct write grants on the business
+tables. Bootstrap uses the two existing database owner accounts to install
+those functions. The smoke checks a real Crafting request, replay, recovery
+after committing only the first participant, and rollback on Player rejection.
+The 2PC mode needs the updated [Crafting implementation](https://github.com/Nick34567890/crafting-service/pull/20)
+and [Broker implementation](https://github.com/PAD-TEAM-7/message-broker/pull/4).
+PostgreSQL prepared effects remain invisible before the decision. Resolution
+can finish at different times on the two databases, so the client receives
+success only after both commits are confirmed.
+
+Keep the coordinator volume and participant credentials until pending work is
+resolved. The deployment uses asynchronous PostgreSQL replication. A sudden
+database loss can discard WAL, including prepared state. If the journal says
+commit but the promoted database lost its WAL, Broker keeps the decision
+pending for recovery. Test failover at a caught-up standby when demonstrating
+2PC. Prepared transactions hold locks until the decision is applied.
+
+### Broker-coordinated Crafting settlement
+
+Add `-f deploy/docker-compose.lab5-sagas.yml` to the Lab 5 flags. Point
+`LAB5_BROKER_CONTEXT` and `LAB5_CRAFTING_CONTEXT` at the feature checkouts from
+[Broker PR #4](https://github.com/PAD-TEAM-7/message-broker/pull/4) and
+[Crafting PR #18](https://github.com/Nick34567890/crafting-service/pull/18),
+then build the two images. Only new jobs use Broker settlement. Existing jobs
+retain their original recovery mode.
+
+Crafting validates recipes and owns the job record. Broker stores the settlement
+and coordinates Resource consumption, Player grant and compensation after a
+confirmed grant rejection. Each step has its own idempotency key. An ambiguous
+transport failure retries the same step. Crafting stores its final job and
+outbox event together.
+
+| Endpoint | Lab 5 behavior |
+| --- | --- |
+| `POST /api/v1/crafts` | Slow settlement returns HTTP 202 with `job_id` and `status: pending`. |
+| `GET /api/v1/crafts/{job_id}` | Poll for `pending`, `completed`, `compensated`, or `failed`. |
+| Broker `GET /v1/sagas` | Operator token required. Lists `job_id`, `request_id`, `state`, `protocol` and `consume_tx_id` for up to 100 recent settlements. |
+| Broker `Call commands.crafting POST /api/v1/internal/craft-settlement` and `/api/v1/internal/craft-settlement-2pc` | Crafting service only. Takes canonical UUIDs `job_id`, `player_id` and `lobby_id`, an `inputs` array and an `output` item. Each item has `item_id` and `count`. The idempotency key equals `job_id`. The chosen protocol stays fixed for that job. |
+
+With the Lab 5 stack running, generate the private Postman environment:
+
+```powershell
+python scripts/lab4-prepare-postman.py
+```
+
+Import the generated environment and the
+[Lab 5 operations collection](postman/lab5-operations.postman_collection.json).
+Select the environment, then send **Start a barricade kit craft**, **Read the
+craft job** and **List Broker craft sagas** in order. The first request saves
+the craft job ID. Poll the second request if the job is pending. In the Broker
+response, find the same job ID and show its `request_id`, `state` and
+`protocol`. The saga overlay reports `saga`. Adding the 2PC overlay changes
+new work to `2pc`.
+
+Run `python scripts/lab5-saga-smoke.py --project pad-lab5` on the isolated
+deployment. It pauses both Player workers, waits until Broker has charged
+materials, restarts Broker, then resumes the workers and checks that the player
+received one kit and paid once. Use `--help` for nondefault host ports.
+Add `--verify-refund` to check that Resource restores the materials when Player
+rejects a grant for a nonexistent fixture player.
+
+The restart check passed with the Lab 5 database failover and cache overlays
+enabled. The release targets are Broker `5.0.0`, Crafting `5.1.0` and Gateway
+`5.0.0` in their existing Docker Hub repositories. The Lab 5 overlays use
+local builds while the reviewed release images are being published.
+
+After the three tags are published, append
+`-f deploy/docker-compose.lab5-release.yml` to the Compose arguments. If the HA
+overlay is enabled, build the internal PostgreSQL router with
+`docker compose @lab5 build db-router`, then run
+`docker compose @lab5 up -d --no-build --pull missing`. This keeps the released
+service versions explicit and leaves the existing Lab 4 image pins intact.
+
 ## Lab 4: durable gRPC message broker
 
 Lab 4 adds a Python broker with subscriber/topic queues, native gRPC workers in all
