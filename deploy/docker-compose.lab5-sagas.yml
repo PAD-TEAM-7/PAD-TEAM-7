@@ -1,0 +1,13 @@
+services:
+  message-broker:
+    image: ${LAB5_BROKER_IMAGE:-pad-lab5-broker:local}
+    build:
+      context: ${LAB5_BROKER_CONTEXT:-../message-broker}
+    environment:
+      LAB5_CRAFT_SAGAS: '1'
+  crafting-service:
+    image: ${LAB5_CRAFTING_IMAGE:-pad-lab5-crafting:local}
+    build:
+      context: ${LAB5_CRAFTING_CONTEXT:-../crafting-service}
+    environment:
+      LAB5_CRAFT_SAGAS: '1'
