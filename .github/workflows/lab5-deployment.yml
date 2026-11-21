@@ -1,0 +1,22 @@
+name: Lab 5 deployment
+
+on:
+  pull_request:
+    branches: [main, development]
+  push:
+    branches: [main, development, 'feat/platform/**']
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Compose and ETL shell syntax
+        run: |
+          docker compose --env-file deploy/.env.example -p pad-lab5 \
+            -f deploy/docker-compose.lab4.yml -f deploy/docker-compose.lab5.yml \
+            --profile analytics config --quiet
+          sh -n deploy/warehouse/extract.sh
