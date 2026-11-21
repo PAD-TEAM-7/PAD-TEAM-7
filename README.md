@@ -79,6 +79,33 @@ services. Redis Cluster instead uses 16,384 CRC16 slots, assigns slot ranges to
 servers and can move slots between them. This lab uses standalone Redis nodes and
 client-side ring placement.
 
+### Broker-coordinated Crafting settlement (draft)
+
+Add `-f deploy/docker-compose.lab5-sagas.yml` to the Lab 5 flags. Point
+`LAB5_BROKER_CONTEXT` and `LAB5_CRAFTING_CONTEXT` at the feature checkouts from
+[Broker PR #4](https://github.com/PAD-TEAM-7/message-broker/pull/4) and
+[Crafting PR #18](https://github.com/Nick34567890/crafting-service/pull/18),
+then build the two images. Only new jobs use Broker settlement. Existing jobs
+retain their original recovery mode.
+
+Crafting validates recipes and owns the job record. Broker stores the settlement
+and coordinates Resource consumption, Player grant and compensation after a
+confirmed grant rejection. Each step has its own idempotency key. An ambiguous
+transport failure retries the same step. Crafting stores its final job and
+outbox event together.
+
+| Endpoint | Lab 5 behavior |
+| --- | --- |
+| `POST /api/v1/crafts` | Slow settlement returns HTTP 202 with `job_id` and `status: pending`. |
+| `GET /api/v1/crafts/{job_id}` | Poll for `pending`, `completed`, `compensated`, or `failed`. |
+| Broker `GET /v1/sagas` | Operator token required. Lists `job_id`, `request_id`, `state`, and `consume_tx_id` for up to 100 recent settlements. |
+| Broker `Call commands.crafting POST /api/v1/internal/craft-settlement` | Crafting service only. Takes canonical UUIDs `job_id`, `player_id` and `lobby_id`, an `inputs` array and an `output` item. Each item has `item_id` and `count`. The idempotency key equals `job_id`. |
+
+Import the [Lab 5 operations collection](postman/lab5-operations.postman_collection.json)
+with the normal private Postman environment. After creating a craft, send the
+saga status request to see its job and trace IDs. Full deployment acceptance for
+Broker-coordinated settlement remains pending.
+
 ## Lab 4: durable gRPC message broker
 
 Lab 4 adds a Python broker with subscriber/topic queues, native gRPC workers in all
