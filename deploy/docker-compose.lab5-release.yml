@@ -1,0 +1,8 @@
+# Load after the Lab 5 feature overlays. Use only after all three tags are published.
+services:
+  gateway:
+    image: artflow/gateway:5.0.0
+  message-broker:
+    image: unstoppabledestroyer/message-broker:5.0.0
+  crafting-service:
+    image: nnick34567890/crafting-service:5.1.0

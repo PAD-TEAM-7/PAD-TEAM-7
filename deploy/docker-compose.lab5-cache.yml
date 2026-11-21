@@ -1,0 +1,25 @@
+services:
+  cache: &cache
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    environment:
+      REDISCLI_AUTH: ${LAB5_CACHE_PASSWORD:?Set LAB5_CACHE_PASSWORD}
+    command: ["sh", "-ec", "exec redis-server --requirepass \"$$REDISCLI_AUTH\" --maxmemory 64mb --maxmemory-policy allkeys-lru --save '' --appendonly no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 4s
+      timeout: 2s
+      retries: 12
+  cache-2: *cache
+  cache-3: *cache
+  gateway:
+    image: ${LAB5_GATEWAY_IMAGE:-pad-lab5-gateway:local}
+    build:
+      context: ${LAB5_GATEWAY_CONTEXT:-../gateway-service}
+    environment:
+      LAB5_CACHE_URL: redis://cache:6379/0,redis://cache-2:6379/0,redis://cache-3:6379/0
+      LAB5_CACHE_PASSWORD: ${LAB5_CACHE_PASSWORD:?Set LAB5_CACHE_PASSWORD}
+    depends_on:
+      cache: {condition: service_healthy}
+      cache-2: {condition: service_healthy}
+      cache-3: {condition: service_healthy}
