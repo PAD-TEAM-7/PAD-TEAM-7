@@ -1,2 +1,3 @@
 deploy/warehouse/*.sh text eol=lf
 deploy/db-ha/*.sh text eol=lf
+deploy/two-phase/*.sh text eol=lf

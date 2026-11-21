@@ -79,6 +79,44 @@ services. Redis Cluster instead uses 16,384 CRC16 slots, assigns slot ranges to
 servers and can move slots between them. This lab uses standalone Redis nodes and
 client-side ring placement.
 
+### Crafting two-phase commit
+
+The two-phase mode stages the actual Resource deduction and Player inventory
+grant in separate PostgreSQL transactions. Each participant votes by running
+`PREPARE TRANSACTION`. Broker persists a commit decision only after both are
+prepared. It records an abort when either participant rejects its work. A
+restarted Broker resolves the same transaction IDs and checks committed markers
+before replying. This mode applies to the Crafting settlement; it does not
+change the transaction protocol of other business workflows.
+
+Use a dedicated Compose project. Add the saga overlay and then
+`-f deploy/docker-compose.lab5-2pc.yml` after the HA overlay. Set a unique
+local `LAB5_TPC_PASSWORD` for the restricted participant roles. After the
+services are healthy and migrations have completed:
+
+```powershell
+docker compose @lab5 run --rm two-phase-install
+python scripts/lab5-2pc-smoke.py --project pad-lab5-2pc
+```
+
+Broker's database login can run the two owner-defined settlement functions and
+read their commit markers. It has no direct write grants on the business
+tables. Bootstrap uses the two existing database owner accounts to install
+those functions. The smoke checks a real Crafting request, replay, recovery
+after committing only the first participant, and rollback on Player rejection.
+The 2PC mode needs the updated [Crafting implementation](https://github.com/Nick34567890/crafting-service/pull/20)
+and [Broker implementation](https://github.com/PAD-TEAM-7/message-broker/pull/4).
+PostgreSQL prepared effects remain invisible before the decision. Resolution
+can finish at different times on the two databases, so the client receives
+success only after both commits are confirmed.
+
+Keep the coordinator volume and participant credentials until pending work is
+resolved. The deployment uses asynchronous PostgreSQL replication. A sudden
+database loss can discard WAL, including prepared state. If the journal says
+commit but the promoted database lost its WAL, Broker keeps the decision
+pending for recovery. Test failover at a caught-up standby when demonstrating
+2PC. Prepared transactions hold locks until the decision is applied.
+
 ### Broker-coordinated Crafting settlement
 
 Add `-f deploy/docker-compose.lab5-sagas.yml` to the Lab 5 flags. Point
@@ -98,8 +136,8 @@ outbox event together.
 | --- | --- |
 | `POST /api/v1/crafts` | Slow settlement returns HTTP 202 with `job_id` and `status: pending`. |
 | `GET /api/v1/crafts/{job_id}` | Poll for `pending`, `completed`, `compensated`, or `failed`. |
-| Broker `GET /v1/sagas` | Operator token required. Lists `job_id`, `request_id`, `state`, and `consume_tx_id` for up to 100 recent settlements. |
-| Broker `Call commands.crafting POST /api/v1/internal/craft-settlement` | Crafting service only. Takes canonical UUIDs `job_id`, `player_id` and `lobby_id`, an `inputs` array and an `output` item. Each item has `item_id` and `count`. The idempotency key equals `job_id`. |
+| Broker `GET /v1/sagas` | Operator token required. Lists `job_id`, `request_id`, `state`, `protocol` and `consume_tx_id` for up to 100 recent settlements. |
+| Broker `Call commands.crafting POST /api/v1/internal/craft-settlement` and `/api/v1/internal/craft-settlement-2pc` | Crafting service only. Takes canonical UUIDs `job_id`, `player_id` and `lobby_id`, an `inputs` array and an `output` item. Each item has `item_id` and `count`. The idempotency key equals `job_id`. The chosen protocol stays fixed for that job. |
 
 Import the [Lab 5 operations collection](postman/lab5-operations.postman_collection.json)
 with the normal private Postman environment. After creating a craft, send the
@@ -113,9 +151,9 @@ Add `--verify-refund` to check that Resource restores the materials when Player
 rejects a grant for a nonexistent fixture player.
 
 The restart check passed with the Lab 5 database failover and cache overlays
-enabled. Broker, Crafting and Gateway have proposed `5.0.0` releases in their
-existing Docker Hub repositories. Their Lab 5 overlays use local builds until
-those releases are reviewed and published.
+enabled. The release targets are Broker `5.0.0`, Crafting `5.1.0` and Gateway
+`5.0.0` in their existing Docker Hub repositories. The Lab 5 overlays use
+local builds while the reviewed release images are being published.
 
 ## Lab 4: durable gRPC message broker
 

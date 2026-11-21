@@ -18,6 +18,8 @@ flowchart LR
     Warehouse --> Analytics[Analytics queries]
     Gateway -->|Consistent-hash placement| Cache[(Three Redis cache shards)]
     Broker -->|Persist consume, grant and refund states| Sagas[(Durable craft settlement state)]
+    Broker -->|Optional prepare and resolve| Participants[Restricted Player and Resource 2PC functions]
+    Participants --> Router
 ```
 
 # Lab 4 architecture

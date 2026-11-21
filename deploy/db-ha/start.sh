@@ -33,4 +33,5 @@ if [ -f "$PGDATA/standby.signal" ]; then
     mv -f "$passfile" /tmp/pad-replication.pass
     set -- "$@" -c "primary_conninfo=host=$FOLLOW_HOST port=$FOLLOW_PORT user=$POSTGRES_USER passfile=/tmp/pad-replication.pass connect_timeout=5"
 fi
-exec docker-entrypoint.sh postgres "$@" -c hba_file=/db-ha/pg_hba.conf -c wal_keep_size=256MB
+exec docker-entrypoint.sh postgres "$@" -c hba_file=/db-ha/pg_hba.conf -c wal_keep_size=256MB \
+    -c "max_prepared_transactions=${LAB5_MAX_PREPARED_TRANSACTIONS:-0}"
