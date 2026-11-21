@@ -83,8 +83,9 @@ def main():
         api(f"/api/v1/players/{player}")
         try:
             docker("stop", *players)
-            headers.update({"Idempotency-Key": trace, "X-Request-ID": trace})
-            craft = api("/api/v1/crafts", method="POST", expected=202, body={
+            submit_headers = {**headers, "Idempotency-Key": trace, "X-Request-ID": trace}
+            craft, _ = http(client.gateway, "/api/v1/crafts", method="POST", expected=202,
+                            headers=submit_headers, body={
                 "player_id": player, "lobby_id": lobby, "recipe_id": "recipe-barricade-kit",
             })
             assert craft["status"] == "pending"
