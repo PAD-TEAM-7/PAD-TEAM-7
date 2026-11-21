@@ -1,0 +1,45 @@
+# Use with docker-compose.lab4.yml and --project-name pad-lab5.
+services:
+  warehouse:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: pad_warehouse
+      POSTGRES_USER: warehouse
+      POSTGRES_PASSWORD: ${WAREHOUSE_PASSWORD:?Set WAREHOUSE_PASSWORD}
+    volumes:
+      - warehouse_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U warehouse -d pad_warehouse"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  warehouse-etl:
+    profiles: [analytics]
+    image: postgres:16-alpine
+    depends_on:
+      warehouse: {condition: service_healthy}
+      player-db: {condition: service_healthy}
+      game-db: {condition: service_healthy}
+      exam-db: {condition: service_healthy}
+      world-db: {condition: service_healthy}
+      zombie-db: {condition: service_healthy}
+      resource-db: {condition: service_healthy}
+      base-db: {condition: service_healthy}
+      crafting-db: {condition: service_healthy}
+    environment:
+      WAREHOUSE_PASSWORD: ${WAREHOUSE_PASSWORD}
+      PLAYER_DB_PASSWORD: ${PLAYER_DB_PASSWORD}
+      GAME_DB_PASSWORD: ${GAME_DB_PASSWORD}
+      EXAM_DB_PASSWORD: ${EXAM_DB_PASSWORD}
+      WORLD_DB_PASSWORD: ${WORLD_DB_PASSWORD}
+      ZOMBIE_DB_PASSWORD: ${ZOMBIE_DB_PASSWORD}
+      RESOURCE_DB_PASSWORD: ${RESOURCE_DB_PASSWORD}
+      BASE_DB_PASSWORD: ${BASE_DB_PASSWORD}
+      CRAFTING_DB_PASSWORD: ${CRAFTING_DB_PASSWORD}
+    volumes:
+      - ./warehouse:/warehouse:ro
+    entrypoint: ["/bin/sh", "/warehouse/extract.sh"]
+
+volumes:
+  warehouse_data:

@@ -1,5 +1,25 @@
 # In Kahoots with the Undead
 
+## Lab 5 warehouse and ETL
+
+Use the Lab 4 deployment with the Lab 5 overlay. Set a fresh
+`WAREHOUSE_PASSWORD` in your local `deploy/.env`. Stop the Lab 4 project
+first if its host ports are in use. The separate project name isolates volumes.
+
+```powershell
+$lab5 = @('-p', 'pad-lab5', '-f', 'deploy/docker-compose.lab4.yml', '-f', 'deploy/docker-compose.lab5.yml')
+docker compose @lab5 up -d
+# Once the application workers are ready and their migrations have completed:
+docker compose @lab5 run --rm warehouse-etl
+docker compose @lab5 exec -T warehouse psql -U warehouse -d pad_warehouse -c 'TABLE analytics.latest;'
+```
+
+The job reads a fixed set of aggregate counts from all eight databases in
+read-only sessions. It loads a complete batch in one warehouse transaction and
+keeps past snapshots for comparison, without copying account records or tokens.
+The eight source reads are separate snapshots, so their counts can reflect
+slightly different times. See the [Lab 5 architecture](docs/architecture.md).
+
 ## Lab 4: durable gRPC message broker
 
 Lab 4 adds a Python broker with subscriber/topic queues, native gRPC workers in all
