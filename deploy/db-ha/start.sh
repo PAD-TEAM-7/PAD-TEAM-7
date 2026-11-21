@@ -27,8 +27,10 @@ if [ -f "$PGDATA/standby.signal" ]; then
     # A private libpq passfile keeps the password out of postgres command arguments.
     umask 077
     escaped="$(printf '%s' "$POSTGRES_PASSWORD" | sed 's/[\\:]/\\&/g')"
-    printf '%s:%s:replication:%s:%s\n' "$FOLLOW_HOST" "$FOLLOW_PORT" "$POSTGRES_USER" "$escaped" > /tmp/pad-replication.pass
-    chown postgres:postgres /tmp/pad-replication.pass
+    passfile="$(mktemp /tmp/pad-replication.XXXXXX)"
+    printf '%s:%s:replication:%s:%s\n' "$FOLLOW_HOST" "$FOLLOW_PORT" "$POSTGRES_USER" "$escaped" > "$passfile"
+    chown postgres:postgres "$passfile"
+    mv -f "$passfile" /tmp/pad-replication.pass
     set -- "$@" -c "primary_conninfo=host=$FOLLOW_HOST port=$FOLLOW_PORT user=$POSTGRES_USER passfile=/tmp/pad-replication.pass connect_timeout=5"
 fi
 exec docker-entrypoint.sh postgres "$@" -c hba_file=/db-ha/pg_hba.conf -c wal_keep_size=256MB
