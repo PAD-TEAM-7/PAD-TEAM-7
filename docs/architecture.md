@@ -22,6 +22,10 @@ flowchart LR
     Broker --> Logs[(Per-instance system log files)]
     Workers --> Logs
     Gateway --> Logs
+    Discovery --> Logs
+    Gateway -. fetches Player public keys .-> Workers
+    Gateway -. resolves WebSocket owner .-> Discovery
+    Discovery -. SMTP critical-load and circuit alerts .-> Developer[Developer email]
     Prometheus[Prometheus] -->|real broker and replica metrics| Broker
     Grafana[Grafana dashboard] --> Prometheus
     Operator[Authenticated operator] -->|topics, dead letters, ZIP log export| Broker
