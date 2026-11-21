@@ -13,7 +13,8 @@ def build():
                    for name in OWNED_DATABASES}
     services["db-router"] = {
         "build": "./db-ha", "restart": "unless-stopped", "environment": environment,
-        "depends_on": {f"{name}-db": {"condition": "service_started"} for name in OWNED_DATABASES},
+        "depends_on": {f"{name}-db": {"condition": "service_started", "required": False}
+                       for name in OWNED_DATABASES},
     }
     services["warehouse-etl"] = {
         "environment": {"ETL_DB_ROUTER": "db-router"},
@@ -52,7 +53,11 @@ def build():
         for worker in workers:
             services[worker] = {
                 "environment": settings,
-                "depends_on": {"db-router": {"condition": "service_started"}},
+                "depends_on": {
+                    "db-router": {"condition": "service_started"},
+                    # Override Lab 4's hard dependency on the original writer.
+                    primary: {"condition": "service_started", "required": False},
+                },
             }
         services["warehouse-etl"]["environment"][f"ETL_{name.upper()}_PORT"] = str(port)
     return {"services": services, "volumes": volumes}

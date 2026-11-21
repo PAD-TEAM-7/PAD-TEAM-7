@@ -46,6 +46,8 @@ before bringing it back as a standby. For an already stopped writer, pass
 `--source-down` and choose the most caught-up standby. Replication is
 asynchronous, so a sudden crash can lose recent writes. Promotion is initiated
 by an operator. This Compose setup validates process failover on one Docker host.
+After a switch, restart a worker with `docker compose @lab5 up -d --no-deps player-service`
+so it reconnects to the current writer without attempting to start fenced nodes.
 
 Run `python scripts/lab5-ha-smoke.py` after promotion to verify the owner-specific
 Player/Game, Zombie/Resource, Exam/World and Base/Crafting business flows. Use
