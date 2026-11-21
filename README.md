@@ -106,6 +106,11 @@ with the normal private Postman environment. After creating a craft, send the
 saga status request to see its job and trace IDs. Full deployment acceptance for
 Broker-coordinated settlement remains pending.
 
+Run `python scripts/lab5-saga-smoke.py --project pad-lab5` on the isolated
+deployment. It pauses both Player workers, waits until Broker has charged
+materials, restarts Broker, then resumes the workers and checks that the player
+received one kit and paid once. Use `--help` for nondefault host ports.
+
 ## Lab 4: durable gRPC message broker
 
 Lab 4 adds a Python broker with subscriber/topic queues, native gRPC workers in all
