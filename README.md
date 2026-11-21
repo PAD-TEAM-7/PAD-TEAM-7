@@ -47,6 +47,36 @@ before bringing it back as a standby. For an already stopped writer, pass
 asynchronous, so a sudden crash can lose recent writes. Promotion is initiated
 by an operator. This Compose setup validates process failover on one Docker host.
 
+Run `python scripts/lab5-ha-smoke.py` after promotion to verify the owner-specific
+Player/Game, Zombie/Resource, Exam/World and Base/Crafting business flows. Use
+`--owner` to select one teammate and `--help` for alternate local ports.
+
+### GET and authentication cache
+
+Use the Gateway Lab 5 branch until its release is pinned. Set
+`LAB5_GATEWAY_CONTEXT` to that checkout, relative to the `deploy` directory
+or as an absolute path, and set a fresh `LAB5_CACHE_PASSWORD` in the local
+environment. Add `-f deploy/docker-compose.lab5-cache.yml` to the Compose
+arguments and start with `docker compose @lab5 up -d --build`.
+
+With the same player token, call `GET /api/v1/courses`,
+`GET /api/v1/recipes`, or `GET /api/v1/zombie-types` twice. The first
+eligible response sets `X-PAD-Cache: MISS` and the second sets
+`X-PAD-Cache: HIT`. Both return the same `X-PAD-Cache-Shard` for the key.
+Catalogue entries expire after 30 seconds and are scoped to the verified
+player, roles, path and query. Gateway always verifies the JWT. Redis also
+caches Player's public signing keys for 60 seconds, with integrity checks on
+shared entries. Unknown signing keys are fetched directly from Player.
+
+Gateway places 128 virtual nodes per Redis shard on a SHA-256 ring. Each key goes
+to the first node clockwise, wrapping at the end. Adding a shard changes
+ownership only where that shard takes over part of the ring. Existing entries
+expire naturally, while new owners refetch misses from the original services.
+If one Redis shard fails, requests for its keys fall back to Broker and the
+services. Redis Cluster instead uses 16,384 CRC16 slots, assigns slot ranges to
+servers and can move slots between them. This lab uses standalone Redis nodes and
+client-side ring placement.
+
 ## Lab 4: durable gRPC message broker
 
 Lab 4 adds a Python broker with subscriber/topic queues, native gRPC workers in all

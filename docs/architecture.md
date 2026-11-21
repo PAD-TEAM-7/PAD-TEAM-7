@@ -2,7 +2,8 @@
 
 Lab 5 extends the Lab 4 request path below. The analytics layer takes
 independent read-only snapshots from the eight service databases.
-The cache is a planned Lab 5 component until grades 6 and 7 are implemented.
+Gateway uses a consistent-hash ring to route approved catalogue and public
+signing-key cache entries across three standalone Redis shards.
 
 ```mermaid
 flowchart LR
@@ -15,7 +16,7 @@ flowchart LR
     Operator[Operator] -->|Fence old writer and promote| Standbys
     ETL -->|Atomic batch| Warehouse[(PostgreSQL data warehouse)]
     Warehouse --> Analytics[Analytics queries]
-    Gateway -. planned GET and authentication cache .-> Cache[(Cache shards)]
+    Gateway -->|Consistent-hash placement| Cache[(Three Redis cache shards)]
 ```
 
 # Lab 4 architecture

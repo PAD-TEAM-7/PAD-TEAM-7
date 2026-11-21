@@ -22,7 +22,9 @@ jobs:
             --profile analytics config --quiet
           docker compose --env-file deploy/.env.example -p pad-lab5 \
             -f deploy/docker-compose.lab4.yml -f deploy/docker-compose.lab5.yml \
-            -f deploy/docker-compose.lab5-ha.yml --profile analytics config --quiet
+            -f deploy/docker-compose.lab5-ha.yml -f deploy/docker-compose.lab5-cache.yml \
+            --profile analytics config --quiet
           sh -n deploy/warehouse/extract.sh
           sh -n deploy/db-ha/start.sh
           python3 -m compileall -q deploy/db-ha
+          python3 -m compileall -q scripts/lab5-ha-smoke.py scripts/lab5_acceptance
