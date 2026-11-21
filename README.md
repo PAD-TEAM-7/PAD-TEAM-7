@@ -139,9 +139,20 @@ outbox event together.
 | Broker `GET /v1/sagas` | Operator token required. Lists `job_id`, `request_id`, `state`, `protocol` and `consume_tx_id` for up to 100 recent settlements. |
 | Broker `Call commands.crafting POST /api/v1/internal/craft-settlement` and `/api/v1/internal/craft-settlement-2pc` | Crafting service only. Takes canonical UUIDs `job_id`, `player_id` and `lobby_id`, an `inputs` array and an `output` item. Each item has `item_id` and `count`. The idempotency key equals `job_id`. The chosen protocol stays fixed for that job. |
 
-Import the [Lab 5 operations collection](postman/lab5-operations.postman_collection.json)
-with the normal private Postman environment. After creating a craft, send the
-saga status request to see its job and trace IDs.
+With the Lab 5 stack running, generate the private Postman environment:
+
+```powershell
+python scripts/lab4-prepare-postman.py
+```
+
+Import the generated environment and the
+[Lab 5 operations collection](postman/lab5-operations.postman_collection.json).
+Select the environment, then send **Start a barricade kit craft**, **Read the
+craft job** and **List Broker craft sagas** in order. The first request saves
+the craft job ID. Poll the second request if the job is pending. In the Broker
+response, find the same job ID and show its `request_id`, `state` and
+`protocol`. The saga overlay reports `saga`. Adding the 2PC overlay changes
+new work to `2pc`.
 
 Run `python scripts/lab5-saga-smoke.py --project pad-lab5` on the isolated
 deployment. It pauses both Player workers, waits until Broker has charged
@@ -154,6 +165,13 @@ The restart check passed with the Lab 5 database failover and cache overlays
 enabled. The release targets are Broker `5.0.0`, Crafting `5.1.0` and Gateway
 `5.0.0` in their existing Docker Hub repositories. The Lab 5 overlays use
 local builds while the reviewed release images are being published.
+
+After the three tags are published, append
+`-f deploy/docker-compose.lab5-release.yml` to the Compose arguments. If the HA
+overlay is enabled, build the internal PostgreSQL router with
+`docker compose @lab5 build db-router`, then run
+`docker compose @lab5 up -d --no-build --pull missing`. This keeps the released
+service versions explicit and leaves the existing Lab 4 image pins intact.
 
 ## Lab 4: durable gRPC message broker
 

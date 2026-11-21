@@ -25,6 +25,7 @@ jobs:
             -f deploy/docker-compose.lab5-ha.yml -f deploy/docker-compose.lab5-cache.yml \
             -f deploy/docker-compose.lab5-sagas.yml \
             -f deploy/docker-compose.lab5-2pc.yml \
+            -f deploy/docker-compose.lab5-release.yml \
             --profile analytics config --quiet
           sh -n deploy/warehouse/extract.sh
           sh -n deploy/db-ha/start.sh

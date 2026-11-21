@@ -5,6 +5,65 @@
   },
   "item": [
     {
+      "name": "Start a barricade kit craft",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"},
+          {"key": "Idempotency-Key", "value": "{{$guid}}"}
+        ],
+        "auth": {
+          "type": "bearer",
+          "bearer": [{"key": "token", "value": "{{playerToken}}", "type": "string"}]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"player_id\": \"{{playerId}}\",\n  \"lobby_id\": \"{{lobbyId}}\",\n  \"recipe_id\": \"recipe-barricade-kit\"\n}"
+        },
+        "url": "{{gateway}}/api/v1/crafts"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.collectionVariables.unset('lab5JobId');",
+              "pm.test('Craft accepted or completed', () => pm.expect([201, 202]).to.include(pm.response.code));",
+              "if ([201, 202].includes(pm.response.code)) {",
+              "  const jobId = pm.response.json().job_id;",
+              "  pm.test('Craft returned a job ID', () => pm.expect(jobId).to.be.a('string').and.not.empty);",
+              "  if (jobId) pm.collectionVariables.set('lab5JobId', jobId);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Read the craft job",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "bearer",
+          "bearer": [{"key": "token", "value": "{{playerToken}}", "type": "string"}]
+        },
+        "url": "{{gateway}}/api/v1/crafts/{{lab5JobId}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "pm.test('Response matches the requested job', () => pm.expect(pm.response.json().job_id).to.eql(pm.collectionVariables.get('lab5JobId')));"
+            ]
+          }
+        }
+      ]
+    },
+    {
       "name": "List Broker craft sagas",
       "request": {
         "method": "GET",
@@ -26,7 +85,15 @@
             "type": "text/javascript",
             "exec": [
               "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
-              "pm.test(\"Saga list\", () => pm.expect(pm.response.json().sagas).to.be.an(\"array\"));"
+              "pm.test(\"Saga list\", () => pm.expect(pm.response.json().sagas).to.be.an(\"array\"));",
+              "const jobId = pm.collectionVariables.get('lab5JobId');",
+              "if (jobId && pm.response.code === 200) {",
+              "  const settlement = pm.response.json().sagas.find(job => job.job_id === jobId);",
+              "  pm.test('Broker recorded the craft and its protocol', () => {",
+              "    pm.expect(settlement).to.be.an('object');",
+              "    pm.expect(['saga', '2pc']).to.include(settlement.protocol);",
+              "  });",
+              "}"
             ]
           }
         }
