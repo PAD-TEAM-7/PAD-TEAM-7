@@ -1,8 +1,8 @@
 {
   "info": {
-    "name": "PAD Lab 4 - service-discovery",
+    "name": "PAD Lab 5 - service-discovery",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "description": "Current Lab 4 deployment (Gateway 28080, Broker 28601, Discovery 28500). FIRST run scripts/lab4-prepare-postman.py and import its PRIVATE environment. Run folders in order. Regenerate fixtures before repeating a collection. All requests assert their expected status. Removed service-only Gateway routes deliberately expect 404. Native gRPC examples: postman/grpc/README.md. Never export real environment credentials into Git."
+    "description": "Lab 5 deployment (Gateway 28080, Broker 28601, Discovery 28500). FIRST run scripts/lab4-prepare-postman.py and import its PRIVATE environment. Run folders in order. Regenerate fixtures before repeating a collection. All requests assert their expected status. Removed service-only Gateway routes deliberately expect 404. Native gRPC examples: postman/grpc/README.md. Never export real environment credentials into Git."
   },
   "variable": [
     {
@@ -36,7 +36,7 @@
               "type": "noauth"
             },
             "url": "{{discovery}}/health",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -68,7 +68,7 @@
               "type": "noauth"
             },
             "url": "{{discovery}}/v1/instances",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -101,7 +101,7 @@
               "type": "noauth"
             },
             "url": "{{discovery}}/v1/topics",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -133,7 +133,7 @@
               "type": "noauth"
             },
             "url": "{{discovery}}/v1/select/base-service",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -161,7 +161,7 @@
               "type": "noauth"
             },
             "url": "{{discovery}}/v1/instances",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -170,6 +170,39 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP 401\", () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Lab 5 - eligible Player replica for the inventory participant",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{discoveryToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{discovery}}/v1/select/player-service",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Eligible Player worker\", () => { const row = pm.response.json(); pm.expect(row.service).to.eql(\"player-service\"); pm.expect(row.topics).to.include(\"commands.player\"); pm.expect(row.load).to.be.a(\"number\"); });"
                 ]
               }
             }

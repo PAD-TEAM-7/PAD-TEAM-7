@@ -55,11 +55,9 @@ Player/Game, Zombie/Resource, Exam/World and Base/Crafting business flows. Use
 
 ### GET and authentication cache
 
-Use the Gateway Lab 5 branch until its release is pinned. Set
-`LAB5_GATEWAY_CONTEXT` to that checkout, relative to the `deploy` directory
-or as an absolute path, and set a fresh `LAB5_CACHE_PASSWORD` in the local
-environment. Add `-f deploy/docker-compose.lab5-cache.yml` to the Compose
-arguments and start with `docker compose @lab5 up -d --build`.
+Set a fresh `LAB5_CACHE_PASSWORD` in the local environment. Add
+`-f deploy/docker-compose.lab5-cache.yml` to the Compose arguments, followed
+by the [release overlay](#published-lab-5-images).
 
 With the same player token, call `GET /api/v1/courses`,
 `GET /api/v1/recipes`, or `GET /api/v1/zombie-types` twice. The first
@@ -119,12 +117,9 @@ pending for recovery. Test failover at a caught-up standby when demonstrating
 
 ### Broker-coordinated Crafting settlement
 
-Add `-f deploy/docker-compose.lab5-sagas.yml` to the Lab 5 flags. Point
-`LAB5_BROKER_CONTEXT` and `LAB5_CRAFTING_CONTEXT` at the feature checkouts from
-[Broker PR #4](https://github.com/PAD-TEAM-7/message-broker/pull/4) and
-[Crafting PR #18](https://github.com/Nick34567890/crafting-service/pull/18),
-then build the two images. Only new jobs use Broker settlement. Existing jobs
-retain their original recovery mode.
+Add `-f deploy/docker-compose.lab5-sagas.yml` to the Lab 5 flags, followed by
+the [release overlay](#published-lab-5-images). Only new jobs use Broker
+settlement. Existing jobs retain their original recovery mode.
 
 Crafting validates recipes and owns the job record. Broker stores the settlement
 and coordinates Resource consumption, Player grant and compensation after a
@@ -147,6 +142,7 @@ python scripts/lab4-prepare-postman.py
 
 Import the generated environment and the
 [Lab 5 operations collection](postman/lab5-operations.postman_collection.json).
+For the combined or individual service suites, see the [Postman setup guide](postman/README.md).
 Select the environment, then send **Start a barricade kit craft**, **Read the
 craft job** and **List Broker craft sagas** in order. The first request saves
 the craft job ID. Poll the second request if the job is pending. In the Broker
@@ -161,12 +157,11 @@ received one kit and paid once. Use `--help` for nondefault host ports.
 Add `--verify-refund` to check that Resource restores the materials when Player
 rejects a grant for a nonexistent fixture player.
 
-The restart check passed with the Lab 5 database failover and cache overlays
-enabled. The release targets are Broker `5.0.0`, Crafting `5.1.0` and Gateway
-`5.0.0` in their existing Docker Hub repositories. The Lab 5 overlays use
-local builds while the reviewed release images are being published.
+The restart check passed with the Lab 5 database failover and cache overlays enabled.
 
-After the three tags are published, append
+### Published Lab 5 images
+
+Broker `5.0.0`, Crafting `5.1.0` and Gateway `5.0.0` are published. Append
 `-f deploy/docker-compose.lab5-release.yml` to the Compose arguments. If the HA
 overlay is enabled, build the internal PostgreSQL router with
 `docker compose @lab5 build db-router`, then run
@@ -178,7 +173,7 @@ service versions explicit and leaves the existing Lab 4 image pins intact.
 Lab 4 adds a Python broker with subscriber/topic queues, native gRPC workers in all
 eight domain services, encrypted durable delivery, dead letters, load-aware
 routing and operational log export. Gateway exposes user operations; internal
-service commands use the broker directly. See the [Lab 4 architecture](docs/architecture.md)
+service commands use the broker directly. See the [runtime topology](docs/architecture.md#runtime-topology)
 and import [the Lab 4 Postman collection](postman/lab4.postman_collection.json).
 
 ```powershell
@@ -257,18 +252,33 @@ services themselves live in private repositories linked here as submodules.
 | 8 | Crafting Service | Gancear Nichita | TypeScript | `8008` | `crafting_db` |
 | 9 | [Gateway Service](./gateway-service) | Shared team | Python | `8080` | None |
 
-Supporting infrastructure: **Service Discovery** on `8500`, **Message Broker**
-gRPC `8600` / operations `8601`, Prometheus and Grafana. The image below is the
-historical Lab 2 view; [the current Lab 4 diagram](docs/architecture.md) includes
-the broker, durable queues and monitoring.
+### Current architecture
 
-![System architecture (Lab 2): game client, API gateway on 8080 in Python as the only entry point, the eight services grouped by language and owner with one database each, and the service registry on 8500](png_arh/architecture.drawio.png)
+```mermaid
+flowchart TB
+    accTitle: Lab 5 service overview
+    accDescr: Gateway routes REST through Broker to eight domain services. Game also accepts direct WebSockets, and Gateway uses Redis for selected reads.
+    Client["Game client / Postman"] -->|REST| Gateway["Gateway"]
+    Client -->|Direct WebSocket| Game["Game"]
+    Gateway -->|gRPC Dispatch| Broker["Message Broker"]
+    Gateway -.->|"Catalogue and JWKS cache"| Redis["Three Redis shards"]
+    Broker -.->|"Eligibility and load"| Discovery["Service Discovery"]
+    Broker <-->|gRPC| Player["Player"]
+    Broker <-->|gRPC| Game
+    Broker <-->|gRPC| Exam["Exam"]
+    Broker <-->|gRPC| World["World"]
+    Broker <-->|gRPC| Zombie["Zombie"]
+    Broker <-->|gRPC| Resource["Resource"]
+    Broker <-->|gRPC| Base["Base"]
+    Broker <-->|gRPC| Crafting["Crafting"]
+    Prometheus["Prometheus"] -->|"Scrape metrics"| Broker
+    Grafana["Grafana"] -->|"Query metrics"| Prometheus
+```
 
-Every REST request from the client enters through the Python Gateway, which validates authorization
-and routes by path. It negotiates WebSocket connections and returns a direct Game Service URL so it
-does not remain in the live data path. Domain services keep ownership of their private databases.
-
-*The diagram is an editable draw.io file — open `png_arh/architecture.drawio.png` at [app.diagrams.net](https://app.diagrams.net) to change it, and re-export over the same file so the picture and its source never drift apart.*
+The [detailed Lab 5 architecture](docs/architecture.md) shows each worker's HTTP
+port, command topic and database route. It also covers Discovery, PostgreSQL
+replication, warehouse ETL, log export, the exam unlock event chain, and both
+Crafting settlement protocols.
 
 ---
 
@@ -334,10 +344,9 @@ also applies its own schema at boot, so an existing database is left alone eithe
 
 ### Testing a service
 
-Each service ships a Postman collection in [`postman/`](./postman/). Import one and run its requests
-in order. Player Service registers and authenticates a fresh account. Game Service can mint Lab 1
-test tokens through `POST /api/v1/dev/tokens`; setting `AUTH_DEV_TOKENS=false` disables that route
-when every client uses Player Service's RS256 tokens.
+Start the published Lab 5 stack and generate a private fixture environment
+before running a collection. The [Postman setup guide](postman/README.md) lists
+the individual collections, the full team run and the native gRPC examples.
 
 ### Running only part of the team's stack
 
@@ -348,20 +357,9 @@ change. What each mock returns is documented in that service's own README.
 
 ### Test
 
-Import a collection from [`postman/`](./postman) and run it top to bottom, either with the
-Collection Runner or from the command line:
-
-```bash
-npx newman run postman/player-service.postman_collection.json
-npx newman run postman/game-service.postman_collection.json
-npx newman run postman/exam-service.postman_collection.json
-npx newman run postman/world-service.postman_collection.json
-npx newman run postman/zombie-service.postman_collection.json
-npx newman run postman/resource-service.postman_collection.json
-```
-
-The collections walk each service's main flow and assert the expected success statuses. Mutating
-cross-service requests generate a fresh `Idempotency-Key` automatically.
+Use Collection Runner for the [combined Lab 5 suite](postman/lab5.postman_collection.json)
+or any individual service collection. For command-line runs, use the
+[Newman runner instructions](postman/README.md#execute-actual-postman-assertions-from-the-terminal).
 
 ### Optional dependency mocks
 
@@ -541,7 +539,6 @@ over WebSockets, and a client reconnect can replay a completion event. Without t
 connection during a scavenge awards the resources twice, and the economy is unrecoverable within a
 session.
 
-![Timed action sequence: a scavenge action completes, the client drops and reconnects, and the replayed gather returns replayed=true with stock unchanged](png_arh/architecture-timed-action.png)
 
 The reconnect at step 9 is the case worth reading twice: the same `Idempotency-Key` reaches Resource Service a second time, and the reply is `replayed=true` with the stock untouched. The player sees the same reward, not a second one.
 
@@ -564,7 +561,7 @@ Because every step is keyed, a saga is safe to replay from any point. Each orche
 
 The craft saga in full, including both failure branches:
 
-![Craft saga sequence: recipe resolution, unlock check, durable job row, material consumption, and either delivery or compensation returning the materials](png_arh/architecture-craft-saga.png)
+[Current Crafting settlement diagram](docs/architecture.md#crafting-settlement)
 
 The branch at step 13 is the one that justifies the whole pattern. Materials are already gone and delivery has failed permanently, so the orchestrator calls `compensate`, restores the pool, and ends the job as `compensated` — the client gets an error and has lost nothing.
 
@@ -1845,7 +1842,7 @@ deduplicate on it exactly as endpoints deduplicate on `Idempotency-Key`.
 
 A worked example — passing an exam unlocks a new wing of the map, across five services:
 
-![Exam unlock sequence: a professor zombie triggers an exam, passing it awards XP and publishes ExamPassed, World generates a new wing and resource pools, and WingUnlocked reaches the client](png_arh/architecture-exam-unlock.png)
+[Current exam unlock event flow](docs/architecture.md#example-event-flow)
 
 Steps 1 to 12 are synchronous — the player is waiting. Steps 13 onward are events: Exam Service publishes `ExamPassed` and stops caring. If World Service were down, the wing would appear when it came back, and the grade would still have been recorded.
 
@@ -1936,7 +1933,7 @@ Every service encapsulates exactly one domain and owns the data for that domain 
 own* column is the important one — it is what stops this design collapsing into a distributed
 monolith.
 
-![Inter-service call graph: every synchronous call and asynchronous event between the eight services, labelled with what each call carries](png_arh/architecture-services.png)
+[Current service routing and command topics](docs/architecture.md#runtime-topology)
 
 Solid arrows are synchronous HTTP calls, dotted arrows are asynchronous events. Read it as the dependency graph: Player and Resource are called by almost everyone and call almost no one, which is what you want from the two services holding the economy.
 
@@ -3404,7 +3401,7 @@ issue is closed by the PR; and the Project board card has moved to **Done** auto
 │   ├── PULL_REQUEST_TEMPLATE.md
 │   └── CODEOWNERS
 ├── docs/                              ← written architecture notes
-├── png_arh/                           ← architecture diagrams used by this README
+├── png_arh/                           ← historical architecture artwork
 ├── deploy/                            ← team docker-compose (DockerHub images) + .env.example
 │   └── db/                            ← one schema script per database
 ├── postman/                           ← one Postman collection per service

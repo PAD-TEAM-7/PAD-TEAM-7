@@ -1,8 +1,8 @@
 {
   "info": {
-    "name": "PAD Lab 4 - exam-service",
+    "name": "PAD Lab 5 - exam-service",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "description": "Current Lab 4 deployment (Gateway 28080, Broker 28601, Discovery 28500). FIRST run scripts/lab4-prepare-postman.py and import its PRIVATE environment. Run folders in order. Regenerate fixtures before repeating a collection. All requests assert their expected status. Removed service-only Gateway routes deliberately expect 404. Native gRPC examples: postman/grpc/README.md. Never export real environment credentials into Git."
+    "description": "Lab 5 deployment (Gateway 28080, Broker 28601, Discovery 28500). FIRST run scripts/lab4-prepare-postman.py and import its PRIVATE environment. Run folders in order. Regenerate fixtures before repeating a collection. All requests assert their expected status. Removed service-only Gateway routes deliberately expect 404. Native gRPC examples: postman/grpc/README.md. Never export real environment credentials into Git."
   },
   "variable": [
     {
@@ -40,7 +40,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/courses",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -72,7 +72,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/players/{{playerId}}/courses",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -105,7 +105,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/exams/{{examId}}",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -146,7 +146,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/exams/{{examId}}/answers",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"question_id\": \"{{questionId}}\",\n  \"option_index\": 0\n}",
@@ -195,7 +195,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/exams/{{examId}}/submit",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC.",
             "body": {
               "mode": "raw",
               "raw": "{}",
@@ -254,7 +254,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/exams/{{examId}}/submit",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC.",
             "body": {
               "mode": "raw",
               "raw": "{}",
@@ -296,7 +296,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/players/{{playerId}}/exams?limit=10",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -328,7 +328,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/players/{{playerId}}/achievements",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -360,7 +360,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/players/{{playerId}}/diploma",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -392,7 +392,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/exams/{{examId}}",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -432,7 +432,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/exams",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC.",
             "body": {
               "mode": "raw",
               "raw": "{}",
@@ -474,7 +474,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/players/{{playerId}}/passed",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -488,6 +488,136 @@
               }
             }
           ]
+        },
+        {
+          "name": "Lab 5 - eligible worker replicas",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{discoveryToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{discovery}}/v1/instances",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const replicas = pm.response.json().instances.filter(instance => instance.service === \"exam-service\" && instance.healthy && instance.lease_valid && !instance.removed);",
+                  "pm.test(\"Two eligible exam workers\", () => {",
+                  "  pm.expect(replicas).to.have.lengthOf.at.least(2);",
+                  "  replicas.forEach(instance => {",
+                  "    pm.expect(instance.grpc_url).to.be.a(\"string\").and.not.empty;",
+                  "    pm.expect(instance.topics).to.include(\"commands.exam\");",
+                  "    pm.expect(instance.load).to.be.a(\"number\");",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Lab 5 - read course catalogue",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              },
+              {
+                "key": "Cache-Control",
+                "value": "max-age=30"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/courses",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Gateway identified a cache shard\", () => {",
+                  "  pm.expect([\"HIT\", \"MISS\"]).to.include(pm.response.headers.get(\"X-PAD-Cache\"));",
+                  "  pm.expect(pm.response.headers.get(\"X-PAD-Cache-Shard\")).to.be.a(\"string\").and.not.empty;",
+                  "});",
+                  "pm.variables.set(\"lab5CacheShard\", pm.response.headers.get(\"X-PAD-Cache-Shard\"));",
+                  "pm.variables.set(\"lab5CacheBody\", pm.response.text());"
+                ]
+              }
+            }
+          ],
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          }
+        },
+        {
+          "name": "Lab 5 - repeat course catalogue on the same shard",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              },
+              {
+                "key": "Cache-Control",
+                "value": "max-age=30"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/courses",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Repeat is a HIT on the same shard\", () => {",
+                  "  pm.expect(pm.response.headers.get(\"X-PAD-Cache\")).to.eql(\"HIT\");",
+                  "  pm.expect(pm.response.headers.get(\"X-PAD-Cache-Shard\")).to.eql(pm.variables.get(\"lab5CacheShard\"));",
+                  "  pm.expect(pm.response.json()).to.deep.eql(JSON.parse(pm.variables.get(\"lab5CacheBody\")));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          }
         }
       ]
     }

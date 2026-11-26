@@ -1,4 +1,4 @@
-"""Generate every current Lab 4 REST collection from one reviewable manifest.
+"""Generate Lab 4 and Lab 5 REST collections from one reviewable manifest.
 
 Run --check in CI to catch stale generated files. Internal operations are shown
 as denied Gateway requests, with real gRPC examples alongside the collections.
@@ -23,15 +23,21 @@ def request(name, method, path, body=None, status=200, *, auth="playerToken", ca
         headers.append({"key": "Authorization", "value": "Bearer {{" + auth + "}}"})
     r = {"method": method, "header": headers, "auth": {"type": "noauth"},
          "url": "{{" + host + "}}" + path,
-         "description": description or "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."}
+         "description": description or "User REST enters Gateway. Uncached business calls use Broker gRPC."}
     if body is not None:
         headers.append({"key": "Content-Type", "value": "application/json"})
         r["body"] = {"mode": "raw", "raw": json.dumps(body, indent=2), "options": {"raw": {"language": "json"}}}
     if method in ("POST", "PATCH", "PUT", "DELETE") and key:
         headers.append({"key": "Idempotency-Key", "value": key})
-    tests = [f'pm.test("HTTP {status}", () => pm.response.to.have.status({status}));']
+    statuses = (status,) if isinstance(status, int) else status
+    valid = f'{json.dumps(statuses)}.includes(pm.response.code)'
+    if isinstance(status, int):
+        valid = f"pm.response.code === {status}"
+        tests = [f'pm.test("HTTP {status}", () => pm.response.to.have.status({status}));']
+    else:
+        tests = [f'pm.test("HTTP {" or ".join(map(str, statuses))}", () => pm.expect({valid}).to.eql(true));']
     if capture:
-        tests.append(f'if (pm.response.code === {status}) {{ const data = pm.response.json();')
+        tests.append(f'if ({valid}) {{ const data = pm.response.json();')
         for var, expr in capture.items():
             tests.append(f'pm.test("{var} returned", () => pm.expect({expr}).to.be.a("string").and.not.empty);')
             tests.append(f'pm.environment.set("{var}", {expr});')
@@ -48,9 +54,9 @@ def denied(name, method, path, body=None):
                    checks=('pm.test("Gateway removed route", () => pm.expect(pm.response.json().error.code).to.eql("ROUTE_NOT_FOUND"));',))
 
 
-def collection(name, folders):
-    return {"info": {"name": "PAD Lab 4 - " + name, "schema": SCHEMA,
-            "description": "Current Lab 4 deployment (Gateway 28080, Broker 28601, Discovery 28500). "
+def collection(name, folders, lab=5):
+    return {"info": {"name": f"PAD Lab {lab} - " + name, "schema": SCHEMA,
+            "description": f"Lab {lab} deployment (Gateway 28080, Broker 28601, Discovery 28500). "
             "FIRST run scripts/lab4-prepare-postman.py and import its PRIVATE environment. Run folders in order. "
             "Regenerate fixtures before repeating a collection. All requests assert their expected status. "
             "Removed service-only Gateway routes deliberately expect 404. Native gRPC examples: postman/grpc/README.md. "
@@ -58,6 +64,50 @@ def collection(name, folders):
             "variable": [{"key": k, "value": v} for k, v in dict(gateway="http://localhost:28080",
                 broker="http://localhost:28601", discovery="http://localhost:28500").items()],
             "item": [{"name": title, "item": items} for title, items in folders]}
+
+
+def replica_check(service):
+    return request(
+        "Lab 5 - eligible worker replicas", "GET", "/v1/instances",
+        host="discovery", auth="discoveryToken",
+        checks=(
+            'const replicas = pm.response.json().instances.filter(instance => '
+            f'instance.service === "{service}-service" && instance.healthy && instance.lease_valid && !instance.removed);',
+            f'pm.test("Two eligible {service} workers", () => {{',
+            '  pm.expect(replicas).to.have.lengthOf.at.least(2);',
+            '  replicas.forEach(instance => {',
+            '    pm.expect(instance.grpc_url).to.be.a("string").and.not.empty;',
+            f'    pm.expect(instance.topics).to.include("commands.{service}");',
+            '    pm.expect(instance.load).to.be.a("number");',
+            '  });',
+            '});',
+        ),
+    )
+
+
+def cached_catalogue(path, label):
+    requests = [
+        request("Lab 5 - read " + label, "GET", path, checks=(
+            'pm.test("Gateway identified a cache shard", () => {',
+            '  pm.expect(["HIT", "MISS"]).to.include(pm.response.headers.get("X-PAD-Cache"));',
+            '  pm.expect(pm.response.headers.get("X-PAD-Cache-Shard")).to.be.a("string").and.not.empty;',
+            '});',
+            'pm.variables.set("lab5CacheShard", pm.response.headers.get("X-PAD-Cache-Shard"));',
+            'pm.variables.set("lab5CacheBody", pm.response.text());',
+        )),
+        request("Lab 5 - repeat " + label + " on the same shard", "GET", path, checks=(
+            'pm.test("Repeat is a HIT on the same shard", () => {',
+            '  pm.expect(pm.response.headers.get("X-PAD-Cache")).to.eql("HIT");',
+            '  pm.expect(pm.response.headers.get("X-PAD-Cache-Shard")).to.eql(pm.variables.get("lab5CacheShard"));',
+            '  pm.expect(pm.response.json()).to.deep.eql(JSON.parse(pm.variables.get("lab5CacheBody")));',
+            '});',
+        )),
+    ]
+    for item in requests:
+        # Postman otherwise adds Cache-Control: no-cache, which bypasses Gateway's cache.
+        item["request"]["header"].append({"key": "Cache-Control", "value": "max-age=30"})
+        item["protocolProfileBehavior"] = {"disableCookies": True}
+    return requests
 
 
 def build():
@@ -230,11 +280,74 @@ def build():
     groups = dict(player=player, game=game, exam=exam, world=world, zombie=zombie,
                   resource=resource, base=base, crafting=crafting, gateway=gateway,
                   **{"message-broker": broker, "service-discovery": discovery})
-    artifacts = {}
-    for name, items in groups.items():
+    artifacts = {"postman/lab4.postman_collection.json":
+                 collection("complete team demonstration", list(groups.items()), lab=4)}
+    lab5 = {service: [*items, replica_check(service)] for service, items in groups.items()
+            if service not in ("gateway", "message-broker", "service-discovery")}
+    # Keep the positive contract assertion runnable without blocking unrelated demonstrations.
+    artifacts["postman/lab5-crafting-diagnostics.postman_collection.json"] = collection(
+        "Crafting availability regression", [("Expected public contract", [crafting[3]])]
+    )
+    lab5["crafting"].remove(crafting[3])
+    lab5["crafting"][4:7] = [
+        request("06 Start a real Crafting settlement", "POST", "/api/v1/crafts", craft_body, (201, 202),
+                capture={"jobId": "data.job_id"}, key="{{craftKey}}",
+                before=('pm.environment.set("craftKey", pm.variables.replaceIn("{{$guid}}"));',
+                        'pm.variables.set("lab5CraftPolls", 0);')),
+        request("07 Replay craft - same job", "POST", "/api/v1/crafts", craft_body, (201, 202),
+                key="{{craftKey}}", checks=(
+                    'pm.test("Same job", () => pm.expect(pm.response.json().job_id).to.eql(pm.environment.get("jobId")));',
+                )),
+        request("08 Poll the settlement outcome", "GET", "/api/v1/crafts/{{jobId}}", checks=(
+            'const job = pm.response.json();',
+            'const polls = Number(pm.variables.get("lab5CraftPolls") || 0);',
+            'pm.test("Read the original job", () => pm.expect(job.job_id).to.eql(pm.environment.get("jobId")));',
+            'if (job.status === "pending" && polls < 10) {',
+            '  pm.variables.set("lab5CraftPolls", polls + 1);',
+            '  pm.execution.setNextRequest(pm.info.requestName);',
+            '} else {',
+            '  pm.test("Craft completed", () => pm.expect(job.status).to.eql("completed"));',
+            '}',
+        )),
+    ]
+    for service, path, label in (
+        ("exam", "/api/v1/courses", "course catalogue"),
+        ("zombie", "/api/v1/zombie-types", "zombie catalogue"),
+        ("crafting", "/api/v1/recipes", "recipe catalogue"),
+    ):
+        lab5[service].extend(cached_catalogue(path, label))
+    lab5["crafting"].extend([
+        request("Lab 5 - find this job in the Broker journal", "GET", "/v1/sagas",
+                host="broker", auth="brokerAdminToken", checks=(
+                    'const job = pm.response.json().sagas.find(row => row.job_id === pm.environment.get("jobId"));',
+                    'pm.test("Broker completed the same job using the selected protocol", () => {',
+                    '  pm.expect(job).to.be.an("object");',
+                    '  pm.expect(job.protocol).to.eql(pm.environment.get("craftProtocol") || "saga");',
+                    '  pm.expect(job.state).to.eql("done");',
+                    '  pm.expect(job.request_id).to.be.a("string").and.not.empty;',
+                    '});',
+                )),
+    ])
+    lab5["gateway"] = [*gateway, *cached_catalogue("/api/v1/zombie-types", "zombie catalogue")]
+    lab5["message-broker"] = [*broker,
+        request("Lab 5 - settlement journal", "GET", "/v1/sagas", host="broker", auth="brokerAdminToken",
+                checks=('pm.test("Settlement list", () => pm.expect(pm.response.json().sagas).to.be.an("array"));',)),
+        request("Lab 5 - settlement journal requires operator token", "GET", "/v1/sagas",
+                host="broker", auth=None, status=401),
+    ]
+    lab5["service-discovery"] = [*discovery, request(
+        "Lab 5 - eligible Player replica for the inventory participant", "GET", "/v1/select/player-service",
+        auth="discoveryToken", host="discovery", checks=(
+            'pm.test("Eligible Player worker", () => { const row = pm.response.json();'
+            ' pm.expect(row.service).to.eql("player-service");'
+            ' pm.expect(row.topics).to.include("commands.player");'
+            ' pm.expect(row.load).to.be.a("number"); });',
+        ),
+    )]
+    for name, items in lab5.items():
         filename = name if name in ("gateway", "message-broker", "service-discovery") else name + "-service"
         artifacts["postman/" + filename + ".postman_collection.json"] = collection(filename, [(filename, items)])
-    artifacts["postman/lab4.postman_collection.json"] = collection("complete team demonstration", list(groups.items()))
+    artifacts["postman/lab5.postman_collection.json"] = collection("complete team demonstration", list(lab5.items()))
     artifacts["postman/lab4.postman_environment.json"] = {
         "name": "PAD Lab 4 TEMPLATE - run preparation for real fixtures", "_postman_variable_scope": "environment",
         "values": [{"key": k, "value": v, "enabled": True, "type": "secret" if k.endswith("Token") else "default"}
@@ -291,7 +404,7 @@ def main():
             path.write_text(text, encoding="utf-8")
     if stale:
         raise SystemExit("Regenerate Postman collections: " + ", ".join(stale))
-    print("Lab 4 Postman artifacts " + ("are current." if args.check else "generated."))
+    print("Postman artifacts " + ("are current." if args.check else "generated."))
 
 
 if __name__ == "__main__":

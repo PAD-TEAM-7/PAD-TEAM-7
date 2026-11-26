@@ -1,8 +1,8 @@
 {
   "info": {
-    "name": "PAD Lab 4 - world-service",
+    "name": "PAD Lab 5 - world-service",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "description": "Current Lab 4 deployment (Gateway 28080, Broker 28601, Discovery 28500). FIRST run scripts/lab4-prepare-postman.py and import its PRIVATE environment. Run folders in order. Regenerate fixtures before repeating a collection. All requests assert their expected status. Removed service-only Gateway routes deliberately expect 404. Native gRPC examples: postman/grpc/README.md. Never export real environment credentials into Git."
+    "description": "Lab 5 deployment (Gateway 28080, Broker 28601, Discovery 28500). FIRST run scripts/lab4-prepare-postman.py and import its PRIVATE environment. Run folders in order. Regenerate fixtures before repeating a collection. All requests assert their expected status. Removed service-only Gateway routes deliberately expect 404. Native gRPC examples: postman/grpc/README.md. Never export real environment credentials into Git."
   },
   "variable": [
     {
@@ -40,7 +40,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/worlds/{{lobbyId}}",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -72,7 +72,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/worlds/{{lobbyId}}/wings",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -104,7 +104,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/worlds/{{lobbyId}}/rooms",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -136,7 +136,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/rooms/{{roomId}}",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -168,7 +168,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/worlds/00000000-0000-4000-8000-000000000000",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -208,7 +208,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/worlds",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC.",
             "body": {
               "mode": "raw",
               "raw": "{}",
@@ -250,7 +250,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/worlds/{{lobbyId}}/nodes",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -283,7 +283,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/worlds/{{lobbyId}}/spawns",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -324,7 +324,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/worlds/{{lobbyId}}/unlock",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC.",
             "body": {
               "mode": "raw",
               "raw": "{}",
@@ -374,7 +374,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/rooms/{{roomId}}",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"safe\": true\n}",
@@ -393,6 +393,47 @@
                 "exec": [
                   "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
                   "pm.test(\"Gateway removed route\", () => pm.expect(pm.response.json().error.code).to.eql(\"ROUTE_NOT_FOUND\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Lab 5 - eligible worker replicas",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{discoveryToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{discovery}}/v1/instances",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const replicas = pm.response.json().instances.filter(instance => instance.service === \"world-service\" && instance.healthy && instance.lease_valid && !instance.removed);",
+                  "pm.test(\"Two eligible world workers\", () => {",
+                  "  pm.expect(replicas).to.have.lengthOf.at.least(2);",
+                  "  replicas.forEach(instance => {",
+                  "    pm.expect(instance.grpc_url).to.be.a(\"string\").and.not.empty;",
+                  "    pm.expect(instance.topics).to.include(\"commands.world\");",
+                  "    pm.expect(instance.load).to.be.a(\"number\");",
+                  "  });",
+                  "});"
                 ]
               }
             }

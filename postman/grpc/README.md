@@ -1,4 +1,4 @@
-# Native Lab 4 gRPC requests in Postman
+# Native gRPC requests in Postman
 
 REST collections cover public users and operations. Internal requests use the
 actual protobuf and Broker; do not restore removed Gateway REST routes.
@@ -6,8 +6,9 @@ actual protobuf and Broker; do not restore removed Gateway REST routes.
 1. Run `python scripts/lab4-prepare-postman.py` from the CPR root. Besides the
    environment, it prints the path to **PAD-LAB4-GRPC-PRIVATE.json** outside Git.
    This is a set of rendered request examples, not a REST collection to import.
-2. In Postman create **New → gRPC**. Server: `localhost:28600`, TLS off for this
-   local Compose deployment. Import `contracts/broker/v1/broker.proto` as the
+2. In Postman create **New → gRPC**. Use the server in the private JSON
+   (default `localhost:28600`). Keep TLS off for this local Compose deployment.
+   Import `contracts/broker/v1/broker.proto` as the
    service definition. Choose `pad.broker.v1.MessageBroker` → **Call**.
 3. Open the private JSON locally. Pick an entry, copy its `message` object into
    Message, and add its `metadata.authorization` as the `authorization` metadata

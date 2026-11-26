@@ -72,6 +72,7 @@ class Lab4Client:
         operations="http://localhost:28601",
     ):
         self.env = environment(env_file)
+        self.target = target
         self.gateway, self.discovery, self.operations = gateway, discovery, operations
         self.channel = grpc.insecure_channel(
             target, options=[("grpc.max_receive_message_length", 4 << 20)]

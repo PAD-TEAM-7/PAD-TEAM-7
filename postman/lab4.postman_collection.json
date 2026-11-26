@@ -2,7 +2,7 @@
   "info": {
     "name": "PAD Lab 4 - complete team demonstration",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "description": "Current Lab 4 deployment (Gateway 28080, Broker 28601, Discovery 28500). FIRST run scripts/lab4-prepare-postman.py and import its PRIVATE environment. Run folders in order. Regenerate fixtures before repeating a collection. All requests assert their expected status. Removed service-only Gateway routes deliberately expect 404. Native gRPC examples: postman/grpc/README.md. Never export real environment credentials into Git."
+    "description": "Lab 4 deployment (Gateway 28080, Broker 28601, Discovery 28500). FIRST run scripts/lab4-prepare-postman.py and import its PRIVATE environment. Run folders in order. Regenerate fixtures before repeating a collection. All requests assert their expected status. Removed service-only Gateway routes deliberately expect 404. Native gRPC examples: postman/grpc/README.md. Never export real environment credentials into Git."
   },
   "variable": [
     {
@@ -44,7 +44,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/players/register",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"username\": \"{{newUsername}}\",\n  \"email\": \"{{newEmail}}\",\n  \"password\": \"{{newPassword}}\"\n}",
@@ -105,7 +105,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/players/login",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"{{playerEmail}}\",\n  \"password\": \"{{playerPassword}}\"\n}",
@@ -148,7 +148,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/auth/jwks",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -181,7 +181,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/players/{{playerId}}",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -221,7 +221,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/players/{{playerId}}",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"title\": \"Lab 4 survivor\",\n  \"avatar\": \"survivor.png\"\n}",
@@ -262,7 +262,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/players/{{playerId}}/inventory",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -302,7 +302,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/players/{{playerId}}/presence",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"status\": \"online\"\n}",
@@ -351,7 +351,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/players/{{playerId}}/friends",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"friend_id\": \"{{otherPlayerId}}\"\n}",
@@ -392,7 +392,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/players/{{playerId}}/friends",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -428,7 +428,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/players/{{playerId}}/friends/{{otherPlayerId}}",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -464,7 +464,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/players/refresh",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"refresh_token\": \"{{playerRefreshToken}}\"\n}",
@@ -507,7 +507,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/players/{{playerId}}",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -547,7 +547,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/players/{{playerId}}/xp",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"amount\": 1\n}",
@@ -597,7 +597,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/players/{{playerId}}/inventory",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC.",
             "body": {
               "mode": "raw",
               "raw": "{}",
@@ -647,7 +647,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/dev/tokens",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC.",
             "body": {
               "mode": "raw",
               "raw": "{}",
@@ -694,7 +694,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/lobbies?university=FAF",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -734,7 +734,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/lobbies",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"Postman extra lobby\",\n  \"university\": \"FAF\",\n  \"max_players\": 8\n}",
@@ -779,7 +779,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/lobbies/{{lobbyId}}",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -819,7 +819,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/lobbies/{{lobbyId}}/join",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"player_id\": \"{{otherPlayerId}}\"\n}",
@@ -868,7 +868,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/lobbies/{{lobbyId}}/actions",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"action_type\": \"chop_bench\",\n  \"target_room_id\": \"{{nodeRoomId}}\",\n  \"target_node_id\": \"{{nodeId}}\"\n}",
@@ -913,7 +913,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/actions/{{actionId}}",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -989,7 +989,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/lobbies/{{lobbyId}}/trades",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"to_player_id\": \"{{otherPlayerId}}\",\n  \"offer\": [\n    {\n      \"item_id\": \"axe-01\",\n      \"count\": 1\n    }\n  ],\n  \"request\": []\n}",
@@ -1042,7 +1042,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/trades/{{tradeId}}/respond",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"decision\": \"decline\"\n}",
@@ -1083,7 +1083,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/ws/v1/lobbies/{{lobbyId}}",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -1124,7 +1124,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/lobbies/{{lobbyId}}/leave",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC.",
             "body": {
               "mode": "raw",
               "raw": "{}",
@@ -1173,7 +1173,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/lobbies/{{lobbyId}}/cycle",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC.",
             "body": {
               "mode": "raw",
               "raw": "{}",
@@ -1223,7 +1223,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/lobbies/{{lobbyId}}/encounters",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC.",
             "body": {
               "mode": "raw",
               "raw": "{}",
@@ -1270,7 +1270,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/courses",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -1302,7 +1302,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/players/{{playerId}}/courses",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -1335,7 +1335,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/exams/{{examId}}",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -1376,7 +1376,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/exams/{{examId}}/answers",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"question_id\": \"{{questionId}}\",\n  \"option_index\": 0\n}",
@@ -1425,7 +1425,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/exams/{{examId}}/submit",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC.",
             "body": {
               "mode": "raw",
               "raw": "{}",
@@ -1484,7 +1484,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/exams/{{examId}}/submit",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC.",
             "body": {
               "mode": "raw",
               "raw": "{}",
@@ -1526,7 +1526,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/players/{{playerId}}/exams?limit=10",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -1558,7 +1558,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/players/{{playerId}}/achievements",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -1590,7 +1590,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/players/{{playerId}}/diploma",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -1622,7 +1622,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/exams/{{examId}}",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -1662,7 +1662,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/exams",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC.",
             "body": {
               "mode": "raw",
               "raw": "{}",
@@ -1704,7 +1704,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/players/{{playerId}}/passed",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -1742,7 +1742,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/worlds/{{lobbyId}}",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -1774,7 +1774,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/worlds/{{lobbyId}}/wings",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -1806,7 +1806,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/worlds/{{lobbyId}}/rooms",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -1838,7 +1838,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/rooms/{{roomId}}",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -1870,7 +1870,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/worlds/00000000-0000-4000-8000-000000000000",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -1910,7 +1910,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/worlds",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC.",
             "body": {
               "mode": "raw",
               "raw": "{}",
@@ -1952,7 +1952,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/worlds/{{lobbyId}}/nodes",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -1985,7 +1985,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/worlds/{{lobbyId}}/spawns",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -2026,7 +2026,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/worlds/{{lobbyId}}/unlock",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC.",
             "body": {
               "mode": "raw",
               "raw": "{}",
@@ -2076,7 +2076,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/rooms/{{roomId}}",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"safe\": true\n}",
@@ -2123,7 +2123,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/zombie-types",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -2159,7 +2159,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/zombie-types/{{zombieTypeId}}",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -2199,7 +2199,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/zombies",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC.",
             "body": {
               "mode": "raw",
               "raw": "{}",
@@ -2249,7 +2249,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/zombies/00000000-0000-4000-8000-000000000000/damage",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"amount\": 1\n}",
@@ -2299,7 +2299,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/zombies/00000000-0000-4000-8000-000000000000/kill",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC.",
             "body": {
               "mode": "raw",
               "raw": "{}",
@@ -2349,7 +2349,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/zombies/00000000-0000-4000-8000-000000000000/steal",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC.",
             "body": {
               "mode": "raw",
               "raw": "{}",
@@ -2396,7 +2396,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/players/{{playerId}}/resources?lobby_id={{lobbyId}}",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -2425,7 +2425,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/players/{{playerId}}/resources?lobby_id={{lobbyId}}",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -2465,7 +2465,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/pools",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC.",
             "body": {
               "mode": "raw",
               "raw": "{}",
@@ -2515,7 +2515,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/transactions/gather",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC.",
             "body": {
               "mode": "raw",
               "raw": "{}",
@@ -2565,7 +2565,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/transactions/consume",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC.",
             "body": {
               "mode": "raw",
               "raw": "{}",
@@ -2615,7 +2615,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/transactions/transfer",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC.",
             "body": {
               "mode": "raw",
               "raw": "{}",
@@ -2665,7 +2665,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/transactions/00000000-0000-4000-8000-000000000000/compensate",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC.",
             "body": {
               "mode": "raw",
               "raw": "{}",
@@ -2712,7 +2712,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/bases?lobby_id={{lobbyId}}",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -2744,7 +2744,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/bases/{{baseId}}",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -2776,7 +2776,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/bases/{{baseId}}/facilities",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -2808,7 +2808,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/bases/{{baseId}}/barricades",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -2840,7 +2840,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/bases/{{baseId}}",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -2881,7 +2881,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/bases/{{baseId}}/upgrade",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"player_id\": \"{{playerId}}\"\n}",
@@ -2940,7 +2940,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/bases/{{baseId}}/upgrade",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"player_id\": \"{{playerId}}\"\n}",
@@ -2990,7 +2990,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/bases/{{baseId}}/facilities",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"player_id\": \"{{playerId}}\",\n  \"type\": \"workbench\"\n}",
@@ -3039,7 +3039,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/bases/{{baseId}}/barricades",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"player_id\": \"{{playerId}}\",\n  \"room_id\": \"{{buildRoomId}}\",\n  \"material\": \"wood\"\n}",
@@ -3088,7 +3088,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/barricades/{{repairBarricadeId}}",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"operation\": \"repair\",\n  \"player_id\": \"{{playerId}}\"\n}",
@@ -3138,7 +3138,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/bases",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC.",
             "body": {
               "mode": "raw",
               "raw": "{}",
@@ -3180,7 +3180,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/bases/{{baseId}}/blueprints",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -3218,7 +3218,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/recipes",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -3250,7 +3250,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/recipes?category=defense",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -3282,7 +3282,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/recipes/recipe-barricade-kit",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -3354,7 +3354,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/recipes/recipe-barricade-kit/preview",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"player_id\": \"{{playerId}}\",\n  \"lobby_id\": \"{{lobbyId}}\",\n  \"base_id\": \"{{baseId}}\"\n}",
@@ -3405,7 +3405,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/crafts",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"player_id\": \"{{playerId}}\",\n  \"lobby_id\": \"{{lobbyId}}\",\n  \"base_id\": \"{{baseId}}\",\n  \"recipe_id\": \"recipe-barricade-kit\"\n}",
@@ -3467,7 +3467,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/crafts",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"player_id\": \"{{playerId}}\",\n  \"lobby_id\": \"{{lobbyId}}\",\n  \"base_id\": \"{{baseId}}\",\n  \"recipe_id\": \"recipe-barricade-kit\"\n}",
@@ -3509,7 +3509,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/crafts/{{jobId}}",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -3541,7 +3541,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/crafts?player_id={{playerId}}&limit=10",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -3573,7 +3573,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/crafts?player_id={{otherPlayerId}}",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -3605,7 +3605,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/recipes/recipe-missing",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -3638,7 +3638,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/health",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -3666,7 +3666,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/status",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -3698,7 +3698,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/api/v1/players/{{playerId}}",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -3730,7 +3730,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/player-service/api/v1/health",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -3771,7 +3771,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/world-service/api/v1/events",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC.",
             "body": {
               "mode": "raw",
               "raw": "{}",
@@ -3813,7 +3813,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/health/upstreams",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -3846,7 +3846,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/gateway/routes",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -3887,7 +3887,7 @@
               "type": "noauth"
             },
             "url": "{{gateway}}/gateway/dev/tokens",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC.",
             "body": {
               "mode": "raw",
               "raw": "{}",
@@ -3930,7 +3930,7 @@
               "type": "noauth"
             },
             "url": "{{broker}}/health",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -3962,7 +3962,7 @@
               "type": "noauth"
             },
             "url": "{{broker}}/v1/topics",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -3995,7 +3995,7 @@
               "type": "noauth"
             },
             "url": "{{broker}}/v1/queues",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -4027,7 +4027,7 @@
               "type": "noauth"
             },
             "url": "{{broker}}/v1/dead-letters",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -4060,7 +4060,7 @@
               "type": "noauth"
             },
             "url": "{{broker}}/v1/logs/download",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -4089,7 +4089,7 @@
               "type": "noauth"
             },
             "url": "{{broker}}/metrics",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -4118,7 +4118,7 @@
               "type": "noauth"
             },
             "url": "{{broker}}/v1/topics",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -4158,7 +4158,7 @@
               "type": "noauth"
             },
             "url": "{{broker}}/v1/dead-letters/00000000-0000-4000-8000-000000000000/replay",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC.",
             "body": {
               "mode": "raw",
               "raw": "{}",
@@ -4207,7 +4207,7 @@
               "type": "noauth"
             },
             "url": "{{broker}}/v1/instances/00000000-0000-4000-8000-000000000000/restore",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC.",
             "body": {
               "mode": "raw",
               "raw": "{}",
@@ -4249,7 +4249,7 @@
               "type": "noauth"
             },
             "url": "{{discovery}}/health",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -4281,7 +4281,7 @@
               "type": "noauth"
             },
             "url": "{{discovery}}/v1/instances",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -4314,7 +4314,7 @@
               "type": "noauth"
             },
             "url": "{{discovery}}/v1/topics",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -4346,7 +4346,7 @@
               "type": "noauth"
             },
             "url": "{{discovery}}/v1/select/base-service",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -4374,7 +4374,7 @@
               "type": "noauth"
             },
             "url": "{{discovery}}/v1/instances",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {

@@ -20,19 +20,19 @@ from lab4_rpc import broker_pb2
 from lab4_client import Lab4Client, ROOT, http
 
 
-def prepare(output):
+def prepare(output, client=None, craft_protocol="saga"):
     output = Path(output).resolve()
     if output.is_relative_to(ROOT):
         raise SystemExit("Choose an output outside the repository (contains credentials).")
-    c = Lab4Client()
+    c = client if client is not None else Lab4Client()
     try:
         http(c.gateway, "/health")
         c.ops("/v1/topics")
         for service in ("player", "game", "exam", "world", "zombie", "resource", "base", "crafting"):
             c.call(service + "-service", "/api/v1/status")
         values = dict(gateway=c.gateway, broker=c.operations, discovery=c.discovery,
-                      brokerGrpc="localhost:28600", brokerAdminToken=c.env["BROKER_ADMIN_TOKEN"],
-                      discoveryToken=c.env["DISCOVERY_TOKEN"])
+                      brokerGrpc=c.target, brokerAdminToken=c.env["BROKER_ADMIN_TOKEN"],
+                      discoveryToken=c.env["DISCOVERY_TOKEN"], craftProtocol=craft_protocol)
 
         def user(prefix):
             suffix = uuid4().hex[:12]
@@ -92,7 +92,7 @@ def prepare(output):
             if time.monotonic() >= deadline:
                 raise RuntimeError("PlayerRegistered enrolment did not arrive")
             time.sleep(1)
-        data = {"name": "PAD Lab 4 LOCAL DEMO", "_postman_variable_scope": "environment",
+        data = {"name": "PAD Lab 5 LOCAL DEMO", "_postman_variable_scope": "environment",
                 "values": [{"key": k, "value": v, "enabled": True,
                             "type": "secret" if any(s in k.lower() for s in ("token", "password")) else "default"}
                            for k, v in values.items()]}
@@ -116,7 +116,7 @@ def prepare(output):
             token = jwt.encode(dict(sub=row["source"], roles=["service"], aud="message-broker",
                                     iat=int(time.time()), exp=int(time.time()) + 3600),
                                c.env["SERVICE_JWT_SECRET"], algorithm="HS256")
-            row.update(message=message, target="localhost:28600",
+            row.update(message=message, target=c.target,
                        metadata={"authorization": "Bearer " + token})
             rendered.append(row)
         grpc_output = output.with_name("PAD-LAB4-GRPC-PRIVATE.json")
@@ -131,4 +131,13 @@ def prepare(output):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, default=Path(tempfile.gettempdir()) / "PAD-LAB4-LOCAL.postman_environment.json")
-    prepare(parser.parse_args().output)
+    parser.add_argument("--env-file", type=Path, default=ROOT / "deploy/.env")
+    parser.add_argument("--gateway", default="http://localhost:28080")
+    parser.add_argument("--broker", default="http://localhost:28601")
+    parser.add_argument("--broker-grpc", default="localhost:28600")
+    parser.add_argument("--discovery", default="http://localhost:28500")
+    parser.add_argument("--craft-protocol", choices=("saga", "2pc"), default="saga")
+    args = parser.parse_args()
+    prepare(args.output, Lab4Client(env_file=args.env_file, gateway=args.gateway,
+                                    operations=args.broker, target=args.broker_grpc,
+                                    discovery=args.discovery), craft_protocol=args.craft_protocol)
