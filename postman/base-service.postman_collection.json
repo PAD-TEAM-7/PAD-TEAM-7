@@ -184,6 +184,38 @@
           ]
         },
         {
+          "name": "05b Separate Kiki GET is unavailable",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/bases/{{baseId}}/kiki",
+            "description": "Read Kiki state from the base object. Base has no separate GET handler."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "06 Upgrade using real Resource materials",
           "request": {
             "method": "POST",
