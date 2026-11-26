@@ -1,8 +1,8 @@
 {
   "info": {
-    "name": "PAD Lab 4 - message-broker",
+    "name": "PAD Lab 5 - message-broker",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "description": "Current Lab 4 deployment (Gateway 28080, Broker 28601, Discovery 28500). FIRST run scripts/lab4-prepare-postman.py and import its PRIVATE environment. Run folders in order. Regenerate fixtures before repeating a collection. All requests assert their expected status. Removed service-only Gateway routes deliberately expect 404. Native gRPC examples: postman/grpc/README.md. Never export real environment credentials into Git."
+    "description": "Lab 5 deployment (Gateway 28080, Broker 28601, Discovery 28500). FIRST run scripts/lab4-prepare-postman.py and import its PRIVATE environment. Run folders in order. Regenerate fixtures before repeating a collection. All requests assert their expected status. Removed service-only Gateway routes deliberately expect 404. Native gRPC examples: postman/grpc/README.md. Never export real environment credentials into Git."
   },
   "variable": [
     {
@@ -36,7 +36,7 @@
               "type": "noauth"
             },
             "url": "{{broker}}/health",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -68,7 +68,7 @@
               "type": "noauth"
             },
             "url": "{{broker}}/v1/topics",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -101,7 +101,7 @@
               "type": "noauth"
             },
             "url": "{{broker}}/v1/queues",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -133,7 +133,7 @@
               "type": "noauth"
             },
             "url": "{{broker}}/v1/dead-letters",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -166,7 +166,7 @@
               "type": "noauth"
             },
             "url": "{{broker}}/v1/logs/download",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -195,7 +195,7 @@
               "type": "noauth"
             },
             "url": "{{broker}}/metrics",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -224,7 +224,7 @@
               "type": "noauth"
             },
             "url": "{{broker}}/v1/topics",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC."
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
           },
           "event": [
             {
@@ -264,7 +264,7 @@
               "type": "noauth"
             },
             "url": "{{broker}}/v1/dead-letters/00000000-0000-4000-8000-000000000000/replay",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC.",
             "body": {
               "mode": "raw",
               "raw": "{}",
@@ -313,7 +313,7 @@
               "type": "noauth"
             },
             "url": "{{broker}}/v1/instances/00000000-0000-4000-8000-000000000000/restore",
-            "description": "Lab 4: user REST enters Gateway; Gateway dispatches through Broker gRPC.",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC.",
             "body": {
               "mode": "raw",
               "raw": "{}",
@@ -331,6 +331,67 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Lab 5 - settlement journal",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{brokerAdminToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{broker}}/v1/sagas",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Settlement list\", () => pm.expect(pm.response.json().sagas).to.be.an(\"array\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Lab 5 - settlement journal requires operator token",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{broker}}/v1/sagas",
+            "description": "User REST enters Gateway. Uncached business calls use Broker gRPC."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 401\", () => pm.response.to.have.status(401));"
                 ]
               }
             }

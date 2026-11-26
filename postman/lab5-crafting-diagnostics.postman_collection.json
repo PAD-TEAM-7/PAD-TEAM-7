@@ -1,0 +1,60 @@
+{
+  "info": {
+    "name": "PAD Lab 5 - Crafting availability regression",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Lab 5 deployment (Gateway 28080, Broker 28601, Discovery 28500). FIRST run scripts/lab4-prepare-postman.py and import its PRIVATE environment. Run folders in order. Regenerate fixtures before repeating a collection. All requests assert their expected status. Removed service-only Gateway routes deliberately expect 404. Native gRPC examples: postman/grpc/README.md. Never export real environment credentials into Git."
+  },
+  "variable": [
+    {
+      "key": "gateway",
+      "value": "http://localhost:28080"
+    },
+    {
+      "key": "broker",
+      "value": "http://localhost:28601"
+    },
+    {
+      "key": "discovery",
+      "value": "http://localhost:28500"
+    }
+  ],
+  "item": [
+    {
+      "name": "Expected public contract",
+      "item": [
+        {
+          "name": "04 Available recipes - known service regression",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{playerToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{gateway}}/api/v1/recipes/available?player_id={{playerId}}&lobby_id={{lobbyId}}&base_id={{baseId}}",
+            "description": "Expected 200. Current release fails: Crafting requests Player profile with a service identity (403) and World /api/v1/wings?lobby_id=... (404; current World API is /api/v1/worlds/{lobbyId}/wings with player auth). Keep this assertion failing until the service integration is fixed; do not treat 403/404 as success."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

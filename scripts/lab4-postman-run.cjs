@@ -3,11 +3,14 @@
 // node scripts/lab4-postman-run.cjs <private-environment-path> [collection-path]
 const fs = require('node:fs');
 const path = require('node:path');
+const { execFileSync } = require('node:child_process');
 const root = path.resolve(__dirname, '..');
-const newman = require(path.join(root, '.git/lab4-newman/node_modules/newman'));
+const gitDir = execFileSync('git', ['rev-parse', '--path-format=absolute', '--git-common-dir'],
+  { cwd: root, encoding: 'utf8' }).trim();
+const newman = require(path.join(gitDir, 'lab4-newman/node_modules/newman'));
 const environment = process.argv[2];
 if (!environment) throw new Error('Provide the private environment path; see postman/README.md');
-const collection = process.argv[3] || path.join(root, 'postman/lab4.postman_collection.json');
+const collection = process.argv[3] || path.join(root, 'postman/lab5.postman_collection.json');
 const run = newman.run({
   collection: JSON.parse(fs.readFileSync(collection, 'utf8')),
   environment: JSON.parse(fs.readFileSync(environment, 'utf8')),
