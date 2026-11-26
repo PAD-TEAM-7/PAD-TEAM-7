@@ -36,3 +36,4 @@ jobs:
           python3 -m py_compile scripts/lab5-2pc-smoke.py scripts/lab5-2pc-verify.py
           python3 -m json.tool postman/lab5-operations.postman_collection.json >/dev/null
           python3 scripts/generate-lab4-postman.py --check
+          python3 -m py_compile scripts/generate-lab4-postman.py scripts/lab4-prepare-postman.py

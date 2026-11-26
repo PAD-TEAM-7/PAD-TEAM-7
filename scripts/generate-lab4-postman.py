@@ -5,6 +5,8 @@ as denied Gateway requests, with real gRPC examples alongside the collections.
 """
 import argparse
 import json
+import re
+import runpy
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -215,6 +217,8 @@ def build():
         request("02 Base state", "GET", b), request("03 Facilities", "GET", b + "/facilities"),
         request("04 Barricades", "GET", b + "/barricades"), request("05 Kiki state inside base response", "GET", b,
                 checks=('pm.test("Kiki state is included", () => pm.expect(pm.response.json().kiki.present).to.eql(true));',)),
+        request("05b Separate Kiki GET is unavailable", "GET", b + "/kiki", status=404,
+                description="Read Kiki state from the base object. Base has no separate GET handler."),
         request("06 Upgrade using real Resource materials", "POST", b + "/upgrade", dict(player_id="{{playerId}}"),
                 key="{{baseUpgradeKey}}", before=('pm.environment.set("baseUpgradeKey", pm.variables.replaceIn("{{$guid}}"));',),
                 checks=('pm.test("Level two", () => pm.expect(pm.response.json().level).to.eql(2));',)),
@@ -388,12 +392,52 @@ def build():
     return artifacts
 
 
+def check_gateway_coverage(artifacts, route_file):
+    """Check each Gateway path variant when a checkout of its allowlist is available."""
+    routes = runpy.run_path(str(route_file))["USER_ROUTES"]
+    requests = [
+        item["request"]
+        for folder in artifacts["postman/lab4.postman_collection.json"]["item"]
+        for item in folder["item"]
+    ]
+    samples = {
+        (request["method"], request["url"].removeprefix("{{gateway}}").split("?", 1)[0])
+        for request in requests
+        if request["url"].startswith("{{gateway}}")
+    }
+
+    def expand(pattern):
+        group = re.search(r"\(([^()]+)\)(\?)?", pattern)
+        if group is None:
+            return [pattern]
+        choices = group[1].split("|") + ([""] if group[2] else [])
+        return [
+            variant for choice in choices
+            for variant in expand(pattern[:group.start()] + choice + pattern[group.end():])
+        ]
+
+    missing = []
+    for methods, pattern in routes:
+        for method in methods.split("|"):
+            for variant in expand(pattern):
+                if not any(verb == method and re.fullmatch(variant, path) for verb, path in samples):
+                    missing.append(f"{method} {variant}")
+    if missing:
+        raise SystemExit("Missing current Gateway route examples: " + ", ".join(missing))
+    print("Every Gateway user-route method and path variant has a Postman example.")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true")
+    parser.add_argument("--gateway-routes", type=Path, help="Path to a Gateway user_routes.py checkout")
     args = parser.parse_args()
     stale = []
-    for name, data in build().items():
+    artifacts = build()
+    route_file = args.gateway_routes or ROOT / "gateway-service/app/user_routes.py"
+    if args.gateway_routes or route_file.is_file():
+        check_gateway_coverage(artifacts, route_file)
+    for name, data in artifacts.items():
         text = json.dumps(data, indent=2, ensure_ascii=True) + "\n"
         path = ROOT / name
         if args.check:
